@@ -23,6 +23,9 @@
   border-bottom: 1px solid rgba(211, 235, 230, 0.12);
 }
 
+.language-switch { margin-inline-start: auto; padding: 7px 10px; border: 1px solid rgba(139,216,206,.35); border-radius: 999px; color: #c9ebe4; background: transparent; cursor: pointer; font-size: .75rem; font-weight: 800; }
+.language-switch:hover { color: #08232d; background: #94ddcf; }
+
 .brand {
   display: inline-flex;
   align-items: center;

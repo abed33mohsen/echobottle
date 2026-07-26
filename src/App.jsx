@@ -6,11 +6,16 @@ const MAX_MESSAGE_LENGTH = 280
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
 
+const copy = {
+  en: { switch: 'العربية', online: 'Sea is online', offline: 'Sea is offline', checking: 'Checking the sea…', account: 'Account', english: 'English' },
+  ar: { switch: 'English', online: 'البحر متصل', offline: 'البحر غير متصل', checking: 'نتحقق من البحر…', account: 'الحساب', english: 'الإنجليزية' },
+}
+
 const moods = [
-  { id: 'calm', label: 'Calm', emoji: '☾', color: '#7dd3c7' },
-  { id: 'curious', label: 'Curious', emoji: '✦', color: '#f2c879' },
-  { id: 'heavy', label: 'Heavy', emoji: '☁', color: '#9c9ab6' },
-  { id: 'bright', label: 'Bright', emoji: '☀', color: '#ff9e7a' },
+  { id: 'calm', label: 'Calm', arLabel: 'هادئ', emoji: '☾', color: '#7dd3c7' },
+  { id: 'curious', label: 'Curious', arLabel: 'فضولي', emoji: '✦', color: '#f2c879' },
+  { id: 'heavy', label: 'Heavy', arLabel: 'مثقل', emoji: '☁', color: '#9c9ab6' },
+  { id: 'bright', label: 'Bright', arLabel: 'مضيء', emoji: '☀', color: '#ff9e7a' },
 ]
 
 const reactions = [
@@ -72,6 +77,10 @@ function App() {
   const [isAuthenticating, setIsAuthenticating] = useState(false)
   const [isSigningUp, setIsSigningUp] = useState(false)
   const [authMode, setAuthMode] = useState('signup')
+  const [language, setLanguage] = useState(() => window.localStorage.getItem('echobottle-language') || 'en')
+  const t = copy[language]
+  const x = (en, ar) => language === 'ar' ? ar : en
+  const moodLabel = (mood) => language === 'ar' ? mood.arLabel : mood.label
 
   const currentMood = useMemo(
     () => (currentBottle ? getMood(currentBottle.mood) : null),
@@ -98,6 +107,12 @@ function App() {
   useEffect(() => {
     loadMessages()
   }, [])
+
+  useEffect(() => {
+    document.documentElement.lang = language
+    document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr'
+    window.localStorage.setItem('echobottle-language', language)
+  }, [language])
 
   useEffect(() => {
     const storedToken = window.localStorage.getItem('echobottle-session')
@@ -351,18 +366,20 @@ function App() {
           <span>EchoBottle</span>
         </a>
 
+        <button className="language-switch" type="button" onClick={() => setLanguage((current) => current === 'en' ? 'ar' : 'en')} aria-label="Change language">{t.switch}</button>
+
         <div className={`api-status api-status--${apiStatus}`}>
           <span aria-hidden="true" />
           {apiStatus === 'online'
-            ? 'Sea is online'
+            ? t.online
             : apiStatus === 'offline'
-              ? 'Sea is offline'
-              : 'Checking the sea…'}
+              ? t.offline
+              : t.checking}
         </div>
       </header>
 
       <main id="top" className="page-shell">
-        <section className="account-bar" aria-label="Account">
+        <section className="account-bar" aria-label={t.account}>
           {authUser ? (
             <div className="my-account">
               <div><span>✦ مسجل الدخول: {authUser.email}</span><button type="button" onClick={() => { loadMyMessages(); loadFavorites() }}>تحديث</button><button type="button" onClick={() => { window.localStorage.removeItem('echobottle-session'); setAuthUser(null); setAuthToken(null); setMyMessages([]); setFavoriteIds([]) }}>خروج</button></div>
@@ -374,25 +391,24 @@ function App() {
           ) : (
             <div className="auth-card">
               <div className="auth-card__tabs">
-                <button type="button" className={authMode === 'signup' ? 'is-active' : ''} onClick={() => setAuthMode('signup')}>Create account</button>
-                <button type="button" className={authMode === 'signin' ? 'is-active' : ''} onClick={() => setAuthMode('signin')}>Sign in</button>
+                <button type="button" className={authMode === 'signup' ? 'is-active' : ''} onClick={() => setAuthMode('signup')}>{x('Create account', 'إنشاء حساب')}</button>
+                <button type="button" className={authMode === 'signin' ? 'is-active' : ''} onClick={() => setAuthMode('signin')}>{x('Sign in', 'تسجيل الدخول')}</button>
               </div>
               <form onSubmit={authMode === 'signup' ? (event) => { event.preventDefault(); signUp() } : authenticate}>
-                <h2>{authMode === 'signup' ? 'Join the shore' : 'Welcome back'}</h2>
-                <p>{authMode === 'signup' ? 'Keep messages under your account, or stay anonymous whenever you wish.' : 'Sign in to follow your messages.'}</p>
-                <input type="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} placeholder="Email address" required />
-                <input type="password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} placeholder="Password (6 characters minimum)" minLength="6" required />
-                <button type="submit" disabled={isAuthenticating || isSigningUp}>{authMode === 'signup' ? (isSigningUp ? 'Creating account…' : 'Create account') : (isAuthenticating ? 'Signing in…' : 'Sign in')}</button>
+                <h2>{authMode === 'signup' ? x('Join the shore', 'انضم إلى الشاطئ') : x('Welcome back', 'مرحبًا بعودتك')}</h2>
+                <p>{authMode === 'signup' ? x('Keep messages under your account, or stay anonymous whenever you wish.', 'احفظ رسائلك باسمك، أو استمر مجهولًا متى شئت.') : x('Sign in to follow your messages.', 'سجّل دخولك لمتابعة رسائلك.')}</p>
+                <input type="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} placeholder={x('Email address', 'البريد الإلكتروني')} required />
+                <input type="password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} placeholder={x('Password (6 characters minimum)', 'كلمة مرور من 6 أحرف على الأقل')} minLength="6" required />
+                <button type="submit" disabled={isAuthenticating || isSigningUp}>{authMode === 'signup' ? (isSigningUp ? x('Creating account…', 'جارٍ إنشاء الحساب…') : x('Create account', 'إنشاء حساب')) : (isAuthenticating ? x('Signing in…', 'جارٍ الدخول…') : x('Sign in', 'تسجيل الدخول'))}</button>
               </form>
             </div>
           )}
         </section>
         <section className="hero" aria-labelledby="hero-title">
-          <p className="eyebrow">A small place for thoughts looking for somewhere to land</p>
-          <h1 id="hero-title">Cast a thought into the sea.<br />Find a note from someone else.</h1>
+          <p className="eyebrow">{x('A small place for thoughts looking for somewhere to land', 'مكان صغير للرسائل التي لا تعرف إلى أين تذهب')}</p>
+          <h1 id="hero-title">{x('Cast a thought into the sea.', 'ارمِ فكرة في البحر.')}<br />{x('Find a note from someone else.', 'افتح صدفةً من شخص آخر.')}</h1>
           <p className="hero-copy">
-            EchoBottle is an anonymous space for leaving a short note and finding one
-            left behind by a stranger.
+            {x('EchoBottle is an anonymous space for leaving a short note and finding one left behind by a stranger.', 'EchoBottle مساحة مجهولة، تترك فيها رسالة قصيرة وتجد رسالة عشوائية تركها شخص لا تعرفه.')}
           </p>
           <div className="hero-tide" aria-hidden="true"><span /><span /><span /></div>
         </section>
@@ -409,27 +425,27 @@ function App() {
           <section className="compose-panel panel" aria-labelledby="compose-title">
             <div className="panel-heading">
               <div>
-                <p className="section-kicker">01 — WRITE</p>
-                <h2 id="compose-title">Write a message in a bottle</h2>
+                <p className="section-kicker">01 — {x('WRITE', 'أرسل')}</p>
+                <h2 id="compose-title">{x('Write a message in a bottle', 'اكتب رسالة في زجاجة')}</h2>
               </div>
-              <span className="tiny-note">Stays anonymous</span>
+              <span className="tiny-note">{x('Stays anonymous', 'تبقى مجهولة')}</span>
             </div>
 
             <form className="message-form" onSubmit={handleSubmit}>
-              <label className="field-label" htmlFor="message-content">What would you like to tell the sea?</label>
+              <label className="field-label" htmlFor="message-content">{x('What would you like to tell the sea?', 'ما الذي تريد أن تقوله للبحر؟')}</label>
               <textarea
                 id="message-content"
                 name="content"
                 value={form.content}
                 onChange={handleInputChange}
                 maxLength={MAX_MESSAGE_LENGTH}
-                placeholder="A thought, a question, or something you do not want to lose…"
+                placeholder={x('A thought, a question, or something you do not want to lose…', 'اكتب فكرة، سؤالًا، أو شيئًا لا تريد أن يضيع…')}
                 required
               />
               <div className="character-count" aria-live="polite">{form.content.length}/{MAX_MESSAGE_LENGTH}</div>
 
               <fieldset className="mood-picker">
-                <legend>The feeling of this wave</legend>
+                <legend>{x('The feeling of this wave', 'لون الموجة')}</legend>
                 <div className="mood-options">
                   {moods.map((mood) => (
                     <button
@@ -441,14 +457,14 @@ function App() {
                       aria-pressed={form.mood === mood.id}
                     >
                       <span aria-hidden="true">{mood.emoji}</span>
-                      {mood.label}
+                      {moodLabel(mood)}
                     </button>
                   ))}
                 </div>
               </fieldset>
 
               <label className="field-label field-label--optional" htmlFor="signature">
-                Optional signature <span>— leave it empty to stay anonymous</span>
+                {x('Optional signature', 'توقيع اختياري')} <span>— {x('leave it empty to stay anonymous', 'اتركه فارغًا لتبقى مجهولًا')}</span>
               </label>
               <input
                 id="signature"
@@ -456,12 +472,12 @@ function App() {
                 value={form.signature}
                 onChange={handleInputChange}
                 maxLength="32"
-                placeholder="For example: someone passing by"
+                placeholder={x('For example: someone passing by', 'مثال: شخص مرّ من هنا')}
               />
 
               <button className="primary-button" type="submit" disabled={isSending}>
                 <span aria-hidden="true">↗</span>
-                {isSending ? 'Casting your bottle…' : 'Send to the sea'}
+                {isSending ? x('Casting your bottle…', 'نرمي الزجاجة…') : x('Send to the sea', 'أرسل إلى البحر')}
               </button>
             </form>
           </section>
@@ -469,14 +485,14 @@ function App() {
           <section className="discover-panel panel" aria-labelledby="discover-title">
             <div className="panel-heading panel-heading--discover">
               <div>
-                <p className="section-kicker">02 — DISCOVER</p>
-                <h2 id="discover-title">Open a random bottle</h2>
+                <p className="section-kicker">02 — {x('DISCOVER', 'اكتشف')}</p>
+                <h2 id="discover-title">{x('Open a random bottle', 'افتح زجاجة عشوائية')}</h2>
               </div>
               <label className="explore-filter">
-                <span>Feeling</span>
+                <span>{x('Feeling', 'الموجة')}</span>
                 <select value={exploreMood} onChange={(event) => setExploreMood(event.target.value)}>
-                  <option value="all">All</option>
-                  {moods.map((mood) => <option key={mood.id} value={mood.id}>{mood.label}</option>)}
+                  <option value="all">{x('All', 'كلها')}</option>
+                  {moods.map((mood) => <option key={mood.id} value={mood.id}>{moodLabel(mood)}</option>)}
                 </select>
               </label>
             </div>
@@ -485,7 +501,7 @@ function App() {
               {currentBottle ? (
                 <article className="message-card" style={{ '--message-color': currentMood.color }}>
                   <div className="message-card__topline">
-                    <span className="mood-badge"><span aria-hidden="true">{currentMood.emoji}</span>{currentMood.label}</span>
+                    <span className="mood-badge"><span aria-hidden="true">{currentMood.emoji}</span>{moodLabel(currentMood)}</span>
                     <time dateTime={currentBottle.createdAt}>{formatDate(currentBottle.createdAt)}</time>
                   </div>
                   <blockquote>“{currentBottle.content}”</blockquote>
@@ -505,19 +521,19 @@ function App() {
                       </button>
                     ))}
                   </div>
-                  <button type="button" className={`favorite-button ${favoriteIds.includes(currentBottle.id) ? 'is-saved' : ''}`} onClick={toggleFavorite}>☆ {favoriteIds.includes(currentBottle.id) ? 'Saved' : 'Save this message'}</button>
+                  <button type="button" className={`favorite-button ${favoriteIds.includes(currentBottle.id) ? 'is-saved' : ''}`} onClick={toggleFavorite}>☆ {favoriteIds.includes(currentBottle.id) ? x('Saved', 'محفوظة') : x('Save this message', 'حفظ في المفضلة')}</button>
 
                   <form className="reply-form" onSubmit={sendReply}>
-                    <label htmlFor="reply">Leave a small trace</label>
+                    <label htmlFor="reply">{x('Leave a small trace', 'اترك أثرًا صغيرًا')}</label>
                     <div>
                       <input
                         id="reply"
                         value={replyText}
                         onChange={(event) => setReplyText(event.target.value)}
                         maxLength="180"
-                        placeholder="A short, kind reply…"
+                        placeholder={x('A short, kind reply…', 'رد قصير ولطيف…')}
                       />
-                      <button type="submit" disabled={isReplying}>{isReplying ? '…' : 'Send'}</button>
+                      <button type="submit" disabled={isReplying}>{isReplying ? '…' : x('Send', 'أرسل')}</button>
                     </div>
                   </form>
 
@@ -533,15 +549,15 @@ function App() {
               ) : (
                 <div className="empty-bottle">
                   <div className="floating-bottle" aria-hidden="true"><span /></div>
-                  <p>The sea is calm right now.</p>
-                  <span>Open a bottle to see what a stranger left behind.</span>
+                  <p>{x('The sea is calm right now.', 'البحر هادئ الآن.')}</p>
+                  <span>{x('Open a bottle to see what a stranger left behind.', 'افتح زجاجة لترى ما تركه شخص مجهول.')}</span>
                 </div>
               )}
             </div>
 
             <button className="open-button" type="button" onClick={openBottle} disabled={isOpening}>
               <span aria-hidden="true">⌁</span>
-              {isOpening ? 'Searching the waves…' : 'Open a message from the sea'}
+              {isOpening ? x('Searching the waves…', 'نبحث بين الأمواج…') : x('Open a message from the sea', 'افتح رسالة من البحر')}
             </button>
             {seenBottleIds.length > 0 && (
               <button
@@ -552,7 +568,7 @@ function App() {
                   setNotice({ type: 'success', text: 'بدأنا رحلة جديدة بين الأمواج.' })
                 }}
               >
-                Start a new journey
+                {x('Start a new journey', 'ابدأ رحلة جديدة')}
               </button>
             )}
           </section>
@@ -561,10 +577,10 @@ function App() {
         <section className="shoreline panel" aria-labelledby="shoreline-title">
           <div className="shoreline-heading">
             <div>
-              <p className="section-kicker">JUST ARRIVED</p>
-              <h2 id="shoreline-title">Latest bottles on the shore</h2>
+              <p className="section-kicker">{x('JUST ARRIVED', 'ما وصل حديثًا')}</p>
+              <h2 id="shoreline-title">{x('Latest bottles on the shore', 'آخر الزجاجات على الشاطئ')}</h2>
             </div>
-            <button className="text-button" type="button" onClick={loadMessages}>Refresh messages ↻</button>
+            <button className="text-button" type="button" onClick={loadMessages}>{x('Refresh messages', 'تحديث الرسائل')} ↻</button>
           </div>
 
           {messages.length > 0 ? (
@@ -583,7 +599,7 @@ function App() {
                     }}
                     style={{ '--shelf-color': messageMood.color }}
                   >
-                    <span className="shelf-message__mood">{messageMood.emoji} {messageMood.label}</span>
+                    <span className="shelf-message__mood">{messageMood.emoji} {moodLabel(messageMood)}</span>
                     <strong>{preview(message.content)}</strong>
                     <small>{message.signature || 'An anonymous voice'}</small>
                   </button>
