@@ -208,7 +208,7 @@
 .my-account__title { margin: 15px 0 7px; color: #fff8ec; font-weight: 800; }
 .my-account__list { display: grid; gap: 6px; }
 .my-account__list > div { display: grid; grid-template-columns: 1fr auto; gap: 6px; }
-.my-account__list button { width: 100%; margin: 0; text-align: right; }
+.my-account__list button { width: 100%; margin: 0; text-align: left; }
 .my-account__list .delete-message { width: auto; color: #ffc4b2; border-color: rgba(255,158,122,.45); }
 .my-account__list small { display: block; margin-top: 4px; color: #8aa6a5; }
 .my-account__empty { margin: 0; color: #8aa6a5; }
@@ -562,7 +562,7 @@ button:disabled { cursor: wait; opacity: 0.65; transform: none !important; }
   color: #e3f0ed;
   background: rgba(5, 25, 36, 0.35);
   cursor: pointer;
-  text-align: right;
+  text-align: left;
   transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
 }
 

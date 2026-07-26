@@ -7,16 +7,16 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
 
 const moods = [
-  { id: 'calm', label: 'هادئ', emoji: '☾', color: '#7dd3c7' },
-  { id: 'curious', label: 'فضولي', emoji: '✦', color: '#f2c879' },
-  { id: 'heavy', label: 'مثقل', emoji: '☁', color: '#9c9ab6' },
-  { id: 'bright', label: 'مضيء', emoji: '☀', color: '#ff9e7a' },
+  { id: 'calm', label: 'Calm', emoji: '☾', color: '#7dd3c7' },
+  { id: 'curious', label: 'Curious', emoji: '✦', color: '#f2c879' },
+  { id: 'heavy', label: 'Heavy', emoji: '☁', color: '#9c9ab6' },
+  { id: 'bright', label: 'Bright', emoji: '☀', color: '#ff9e7a' },
 ]
 
 const reactions = [
-  { id: 'wave', emoji: '〰', label: 'وصلتني' },
-  { id: 'spark', emoji: '✦', label: 'فيها شيء' },
-  { id: 'heart', emoji: '♡', label: 'أحببتها' },
+  { id: 'wave', emoji: '〰', label: 'I felt this' },
+  { id: 'spark', emoji: '✦', label: 'Thoughtful' },
+  { id: 'heart', emoji: '♡', label: 'Loved it' },
 ]
 
 function getMood(moodId) {
@@ -36,9 +36,9 @@ async function readJson(response, fallbackMessage) {
 function formatDate(dateString) {
   const date = new Date(dateString)
 
-  if (Number.isNaN(date.getTime())) return 'الآن'
+  if (Number.isNaN(date.getTime())) return 'Just now'
 
-  return new Intl.DateTimeFormat('ar-EG', {
+  return new Intl.DateTimeFormat('en-US', {
     day: 'numeric',
     month: 'short',
     hour: 'numeric',
@@ -346,7 +346,7 @@ function App() {
   return (
     <div className="app">
       <header className="site-header">
-        <a className="brand" href="#top" aria-label="EchoBottle الرئيسية">
+        <a className="brand" href="#top" aria-label="EchoBottle home">
           <span className="brand-bottle" aria-hidden="true"><span /></span>
           <span>EchoBottle</span>
         </a>
@@ -354,15 +354,15 @@ function App() {
         <div className={`api-status api-status--${apiStatus}`}>
           <span aria-hidden="true" />
           {apiStatus === 'online'
-            ? 'البحر متصل'
+            ? 'Sea is online'
             : apiStatus === 'offline'
-              ? 'البحر غير متصل'
-              : 'نتحقق من البحر…'}
+              ? 'Sea is offline'
+              : 'Checking the sea…'}
         </div>
       </header>
 
       <main id="top" className="page-shell">
-        <section className="account-bar" aria-label="الحساب">
+        <section className="account-bar" aria-label="Account">
           {authUser ? (
             <div className="my-account">
               <div><span>✦ مسجل الدخول: {authUser.email}</span><button type="button" onClick={() => { loadMyMessages(); loadFavorites() }}>تحديث</button><button type="button" onClick={() => { window.localStorage.removeItem('echobottle-session'); setAuthUser(null); setAuthToken(null); setMyMessages([]); setFavoriteIds([]) }}>خروج</button></div>
@@ -374,25 +374,25 @@ function App() {
           ) : (
             <div className="auth-card">
               <div className="auth-card__tabs">
-                <button type="button" className={authMode === 'signup' ? 'is-active' : ''} onClick={() => setAuthMode('signup')}>إنشاء حساب</button>
-                <button type="button" className={authMode === 'signin' ? 'is-active' : ''} onClick={() => setAuthMode('signin')}>تسجيل الدخول</button>
+                <button type="button" className={authMode === 'signup' ? 'is-active' : ''} onClick={() => setAuthMode('signup')}>Create account</button>
+                <button type="button" className={authMode === 'signin' ? 'is-active' : ''} onClick={() => setAuthMode('signin')}>Sign in</button>
               </div>
               <form onSubmit={authMode === 'signup' ? (event) => { event.preventDefault(); signUp() } : authenticate}>
-                <h2>{authMode === 'signup' ? 'انضم إلى الشاطئ' : 'مرحبًا بعودتك'}</h2>
-                <p>{authMode === 'signup' ? 'احفظ رسائلك باسمك، أو استمر مجهولًا متى شئت.' : 'سجّل دخولك لمتابعة رسائلك.'}</p>
-                <input type="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} placeholder="البريد الإلكتروني" required />
-                <input type="password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} placeholder="كلمة مرور من 6 أحرف على الأقل" minLength="6" required />
-                <button type="submit" disabled={isAuthenticating || isSigningUp}>{authMode === 'signup' ? (isSigningUp ? 'جارٍ إنشاء الحساب…' : 'إنشاء حساب') : (isAuthenticating ? 'جارٍ الدخول…' : 'تسجيل الدخول')}</button>
+                <h2>{authMode === 'signup' ? 'Join the shore' : 'Welcome back'}</h2>
+                <p>{authMode === 'signup' ? 'Keep messages under your account, or stay anonymous whenever you wish.' : 'Sign in to follow your messages.'}</p>
+                <input type="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} placeholder="Email address" required />
+                <input type="password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} placeholder="Password (6 characters minimum)" minLength="6" required />
+                <button type="submit" disabled={isAuthenticating || isSigningUp}>{authMode === 'signup' ? (isSigningUp ? 'Creating account…' : 'Create account') : (isAuthenticating ? 'Signing in…' : 'Sign in')}</button>
               </form>
             </div>
           )}
         </section>
         <section className="hero" aria-labelledby="hero-title">
-          <p className="eyebrow">مكان صغير للرسائل التي لا تعرف إلى أين تذهب</p>
-          <h1 id="hero-title">ارمِ فكرة في البحر.<br />افتح صدفةً من شخص آخر.</h1>
+          <p className="eyebrow">A small place for thoughts looking for somewhere to land</p>
+          <h1 id="hero-title">Cast a thought into the sea.<br />Find a note from someone else.</h1>
           <p className="hero-copy">
-            EchoBottle مساحة مجهولة، تترك فيها رسالة قصيرة وتجد رسالة عشوائية
-            تركها شخص لا تعرفه.
+            EchoBottle is an anonymous space for leaving a short note and finding one
+            left behind by a stranger.
           </p>
           <div className="hero-tide" aria-hidden="true"><span /><span /><span /></div>
         </section>
@@ -405,31 +405,31 @@ function App() {
           </div>
         )}
 
-        <section className="workspace" aria-label="منطقة الرسائل">
+        <section className="workspace" aria-label="Message workspace">
           <section className="compose-panel panel" aria-labelledby="compose-title">
             <div className="panel-heading">
               <div>
-                <p className="section-kicker">01 — أرسل</p>
-                <h2 id="compose-title">اكتب رسالة في زجاجة</h2>
+                <p className="section-kicker">01 — WRITE</p>
+                <h2 id="compose-title">Write a message in a bottle</h2>
               </div>
-              <span className="tiny-note">تبقى مجهولة</span>
+              <span className="tiny-note">Stays anonymous</span>
             </div>
 
             <form className="message-form" onSubmit={handleSubmit}>
-              <label className="field-label" htmlFor="message-content">ما الذي تريد أن تقوله للبحر؟</label>
+              <label className="field-label" htmlFor="message-content">What would you like to tell the sea?</label>
               <textarea
                 id="message-content"
                 name="content"
                 value={form.content}
                 onChange={handleInputChange}
                 maxLength={MAX_MESSAGE_LENGTH}
-                placeholder="اكتب فكرة، سؤالًا، أو شيئًا لا تريد أن يضيع…"
+                placeholder="A thought, a question, or something you do not want to lose…"
                 required
               />
               <div className="character-count" aria-live="polite">{form.content.length}/{MAX_MESSAGE_LENGTH}</div>
 
               <fieldset className="mood-picker">
-                <legend>لون الموجة</legend>
+                <legend>The feeling of this wave</legend>
                 <div className="mood-options">
                   {moods.map((mood) => (
                     <button
@@ -448,7 +448,7 @@ function App() {
               </fieldset>
 
               <label className="field-label field-label--optional" htmlFor="signature">
-                توقيع اختياري <span>— اتركه فارغًا لتبقى مجهولًا</span>
+                Optional signature <span>— leave it empty to stay anonymous</span>
               </label>
               <input
                 id="signature"
@@ -456,12 +456,12 @@ function App() {
                 value={form.signature}
                 onChange={handleInputChange}
                 maxLength="32"
-                placeholder="مثال: شخص مرّ من هنا"
+                placeholder="For example: someone passing by"
               />
 
               <button className="primary-button" type="submit" disabled={isSending}>
                 <span aria-hidden="true">↗</span>
-                {isSending ? 'نرمي الزجاجة…' : 'أرسل إلى البحر'}
+                {isSending ? 'Casting your bottle…' : 'Send to the sea'}
               </button>
             </form>
           </section>
@@ -469,13 +469,13 @@ function App() {
           <section className="discover-panel panel" aria-labelledby="discover-title">
             <div className="panel-heading panel-heading--discover">
               <div>
-                <p className="section-kicker">02 — اكتشف</p>
-                <h2 id="discover-title">افتح زجاجة عشوائية</h2>
+                <p className="section-kicker">02 — DISCOVER</p>
+                <h2 id="discover-title">Open a random bottle</h2>
               </div>
               <label className="explore-filter">
-                <span>الموجة</span>
+                <span>Feeling</span>
                 <select value={exploreMood} onChange={(event) => setExploreMood(event.target.value)}>
-                  <option value="all">كلها</option>
+                  <option value="all">All</option>
                   {moods.map((mood) => <option key={mood.id} value={mood.id}>{mood.label}</option>)}
                 </select>
               </label>
@@ -489,9 +489,9 @@ function App() {
                     <time dateTime={currentBottle.createdAt}>{formatDate(currentBottle.createdAt)}</time>
                   </div>
                   <blockquote>“{currentBottle.content}”</blockquote>
-                  <div className="message-signature"><span className="signature-line" />{currentBottle.signature || 'صوت مجهول'}</div>
+                  <div className="message-signature"><span className="signature-line" />{currentBottle.signature || 'An anonymous voice'}</div>
 
-                  <div className="reaction-row" aria-label="التفاعلات">
+                  <div className="reaction-row" aria-label="Reactions">
                     {reactions.map((reaction) => (
                       <button
                         type="button"
@@ -505,25 +505,25 @@ function App() {
                       </button>
                     ))}
                   </div>
-                  <button type="button" className={`favorite-button ${favoriteIds.includes(currentBottle.id) ? 'is-saved' : ''}`} onClick={toggleFavorite}>☆ {favoriteIds.includes(currentBottle.id) ? 'محفوظة' : 'حفظ في المفضلة'}</button>
+                  <button type="button" className={`favorite-button ${favoriteIds.includes(currentBottle.id) ? 'is-saved' : ''}`} onClick={toggleFavorite}>☆ {favoriteIds.includes(currentBottle.id) ? 'Saved' : 'Save this message'}</button>
 
                   <form className="reply-form" onSubmit={sendReply}>
-                    <label htmlFor="reply">اترك أثرًا صغيرًا</label>
+                    <label htmlFor="reply">Leave a small trace</label>
                     <div>
                       <input
                         id="reply"
                         value={replyText}
                         onChange={(event) => setReplyText(event.target.value)}
                         maxLength="180"
-                        placeholder="رد قصير ولطيف…"
+                        placeholder="A short, kind reply…"
                       />
-                      <button type="submit" disabled={isReplying}>{isReplying ? '…' : 'أرسل'}</button>
+                      <button type="submit" disabled={isReplying}>{isReplying ? '…' : 'Send'}</button>
                     </div>
                   </form>
 
                   {currentBottle.replies?.length > 0 && (
                     <div className="reply-list">
-                      <p>آثار على الزجاجة</p>
+                      <p>Traces on this bottle</p>
                       {currentBottle.replies.map((reply) => (
                         <div key={reply.id}><span>↳</span>{reply.content}</div>
                       ))}
@@ -533,15 +533,15 @@ function App() {
               ) : (
                 <div className="empty-bottle">
                   <div className="floating-bottle" aria-hidden="true"><span /></div>
-                  <p>البحر هادئ الآن.</p>
-                  <span>افتح زجاجة لترى ما تركه شخص مجهول.</span>
+                  <p>The sea is calm right now.</p>
+                  <span>Open a bottle to see what a stranger left behind.</span>
                 </div>
               )}
             </div>
 
             <button className="open-button" type="button" onClick={openBottle} disabled={isOpening}>
               <span aria-hidden="true">⌁</span>
-              {isOpening ? 'نبحث بين الأمواج…' : 'افتح رسالة من البحر'}
+              {isOpening ? 'Searching the waves…' : 'Open a message from the sea'}
             </button>
             {seenBottleIds.length > 0 && (
               <button
@@ -552,7 +552,7 @@ function App() {
                   setNotice({ type: 'success', text: 'بدأنا رحلة جديدة بين الأمواج.' })
                 }}
               >
-                ابدأ رحلة جديدة
+                Start a new journey
               </button>
             )}
           </section>
@@ -561,10 +561,10 @@ function App() {
         <section className="shoreline panel" aria-labelledby="shoreline-title">
           <div className="shoreline-heading">
             <div>
-              <p className="section-kicker">ما وصل حديثًا</p>
-              <h2 id="shoreline-title">آخر الزجاجات على الشاطئ</h2>
+              <p className="section-kicker">JUST ARRIVED</p>
+              <h2 id="shoreline-title">Latest bottles on the shore</h2>
             </div>
-            <button className="text-button" type="button" onClick={loadMessages}>تحديث الرسائل ↻</button>
+            <button className="text-button" type="button" onClick={loadMessages}>Refresh messages ↻</button>
           </div>
 
           {messages.length > 0 ? (
@@ -585,20 +585,20 @@ function App() {
                   >
                     <span className="shelf-message__mood">{messageMood.emoji} {messageMood.label}</span>
                     <strong>{preview(message.content)}</strong>
-                    <small>{message.signature || 'صوت مجهول'}</small>
+                    <small>{message.signature || 'An anonymous voice'}</small>
                   </button>
                 )
               })}
             </div>
           ) : (
-            <p className="empty-shelf">لا توجد رسائل بعد. كن أول من يرمي زجاجة.</p>
+            <p className="empty-shelf">No bottles have reached the shore yet. Be the first to cast one.</p>
           )}
         </section>
       </main>
 
       <footer className="site-footer">
-        <span>EchoBottle — مشروع React + Node.js</span>
-        <span>رسالة واحدة قد تغيّر مزاج يوم كامل.</span>
+        <span>EchoBottle — A React + Node.js project</span>
+        <span>One message can change the mood of an entire day.</span>
       </footer>
     </div>
   )
