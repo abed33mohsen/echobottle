@@ -1,0 +1,85 @@
+[
+  {
+    "id": "f38a4fce-850b-4eeb-b533-aac0173ebe62",
+    "content": "حبب",
+    "signature": "عبوود",
+    "mood": "curious",
+    "createdAt": "2026-07-26T14:00:46.524Z",
+    "reactions": {
+      "wave": 0,
+      "spark": 0,
+      "heart": 0
+    },
+    "replies": [
+      {
+        "id": "2a6d7080-58b8-48fe-82df-e81d652ec8c6",
+        "content": "مي تووو لف",
+        "createdAt": "2026-07-26T14:18:37.070Z"
+      }
+    ]
+  },
+  {
+    "id": "cc2be258-07d1-436c-9bd3-a3d841697d80",
+    "content": "بحبك",
+    "signature": "",
+    "mood": "calm",
+    "createdAt": "2026-07-26T13:39:53.985Z",
+    "reactions": {
+      "wave": 0,
+      "spark": 0,
+      "heart": 5
+    },
+    "replies": []
+  },
+  {
+    "id": "seed-sunrise",
+    "content": "لو كنت تقرأ هذه الرسالة الآن، أتمنى أن يكون اليوم أخف مما توقعت.",
+    "signature": "شخص مرّ من هنا",
+    "mood": "bright",
+    "createdAt": "2026-07-24T08:20:00.000Z",
+    "reactions": {
+      "wave": 3,
+      "spark": 1,
+      "heart": 5
+    },
+    "replies": [
+      {
+        "id": "seed-reply-1",
+        "content": "وصلت في الوقت المناسب فعلًا.",
+        "createdAt": "2026-07-24T10:12:00.000Z"
+      }
+    ]
+  },
+  {
+    "id": "seed-question",
+    "content": "ما هي الفكرة التي تؤجلها لأنك خائف أن تبدو غريبة؟",
+    "signature": "فضولي مجهول",
+    "mood": "curious",
+    "createdAt": "2026-07-23T20:35:00.000Z",
+    "reactions": {
+      "wave": 4,
+      "spark": 7,
+      "heart": 1
+    },
+    "replies": []
+  },
+  {
+    "id": "seed-night",
+    "content": "أحيانًا لا نحتاج جوابًا؛ نحتاج فقط مكانًا آمنًا لنسأل فيه.",
+    "signature": "",
+    "mood": "calm",
+    "createdAt": "2026-07-22T22:05:00.000Z",
+    "reactions": {
+      "wave": 2,
+      "spark": 2,
+      "heart": 6
+    },
+    "replies": [
+      {
+        "id": "65b9e8f0-2e0b-46c0-a39b-9ba93d8877ec",
+        "content": "مي تو",
+        "createdAt": "2026-07-26T14:00:57.623Z"
+      }
+    ]
+  }
+]
