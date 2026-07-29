@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { isSupabaseEnabled, readSupabaseMessages, replaceSupabaseMessages, supabaseRequest } from './supabase-store.js'
+import { isSupabaseEnabled, readSupabaseMessages, replaceSupabaseMessages, supabaseRequest, createSupabaseMessage, patchSupabaseMessage, createSupabaseReply, deleteSupabaseMessage } from './supabase-store.js'
 
 const app = express()
 const port = Number(process.env.PORT) || 5000
@@ -15,6 +15,16 @@ const messagesFile = path.join(dataDirectory, 'messages.json')
 
 const allowedMoods = new Set(['calm', 'curious', 'heavy', 'bright'])
 const allowedReactions = new Set(['wave', 'spark', 'heart'])
+const allowedRarities = new Set(['common', 'golden', 'night', 'coral', 'legendary'])
+
+function pickRarity() {
+  const roll = Math.random() * 100
+  if (roll < 1) return 'legendary'
+  if (roll < 7) return 'golden'
+  if (roll < 18) return 'night'
+  if (roll < 35) return 'coral'
+  return 'common'
+}
 
 const seedMessages = [
   {
@@ -68,6 +78,9 @@ function normaliseMessage(message) {
     content: cleanText(message.content, 280),
     signature: cleanText(message.signature, 32),
     mood: allowedMoods.has(message.mood) ? message.mood : 'curious',
+    rarity: allowedRarities.has(message.rarity) ? message.rarity : 'common',
+    oneTime: Boolean(message.oneTime),
+    claimedAt: message.claimedAt || null,
     userId: message.userId || null,
     createdAt: message.createdAt || new Date().toISOString(),
     reactions: {
@@ -134,13 +147,20 @@ function sortNewestFirst(messages) {
   )
 }
 
+function toPublicMessage(message) {
+  const publicMessage = { ...message }
+  delete publicMessage.userId
+  return publicMessage
+}
+
 async function getAuthenticatedUser(request) {
   const token = request.headers.authorization?.replace(/^Bearer\s+/i, '')
-  if (!token || !process.env.SUPABASE_URL || !process.env.SUPABASE_SECRET_KEY) return null
+  const serviceKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!token || !process.env.SUPABASE_URL || !serviceKey) return null
 
   const response = await fetch(`${process.env.SUPABASE_URL}/auth/v1/user`, {
     headers: {
-      apikey: process.env.SUPABASE_SECRET_KEY,
+      apikey: serviceKey,
       Authorization: `Bearer ${token}`,
     },
   })
@@ -158,11 +178,11 @@ app.get('/api/messages', async (request, response, next) => {
   try {
     const messages = await readMessages()
     const mood = request.query.mood
-    const filteredMessages = allowedMoods.has(mood)
+    const filteredMessages = (allowedMoods.has(mood)
       ? messages.filter((message) => message.mood === mood)
-      : messages
+      : messages).filter((message) => !message.oneTime)
 
-    response.json({ messages: sortNewestFirst(filteredMessages) })
+    response.json({ messages: sortNewestFirst(filteredMessages).map(toPublicMessage) })
   } catch (error) {
     next(error)
   }
@@ -172,9 +192,24 @@ app.get('/api/messages/random', async (request, response, next) => {
   try {
     const messages = await readMessages()
     const mood = request.query.mood
-    const filteredMessages = allowedMoods.has(mood)
+    if (isSupabaseEnabled) {
+      const claimedId = await supabaseRequest('rpc/claim_one_time_message', {
+        method: 'POST',
+        body: JSON.stringify({ p_mood: allowedMoods.has(mood) ? mood : null }),
+      })
+      if (claimedId) {
+        const claimed = messages.find((message) => message.id === claimedId)
+        if (claimed) {
+          const publicMessage = toPublicMessage(claimed)
+          publicMessage.claimedAt = new Date().toISOString()
+          response.json({ message: publicMessage })
+          return
+        }
+      }
+    }
+    const filteredMessages = (allowedMoods.has(mood)
       ? messages.filter((message) => message.mood === mood)
-      : messages
+      : messages).filter((message) => !message.oneTime)
     const excludedIds = new Set(
       typeof request.query.exclude === 'string'
         ? request.query.exclude.split(',').filter(Boolean)
@@ -193,7 +228,7 @@ app.get('/api/messages/random', async (request, response, next) => {
     }
 
     const index = Math.floor(Math.random() * availableMessages.length)
-    response.json({ message: availableMessages[index] })
+    response.json({ message: toPublicMessage(availableMessages[index]) })
   } catch (error) {
     next(error)
   }
@@ -223,6 +258,28 @@ app.get('/api/favorites', async (request, response, next) => {
   } catch (error) { next(error) }
 })
 
+app.get('/api/profile', async (request, response, next) => {
+  try {
+    const user = await getAuthenticatedUser(request)
+    if (!user || !isSupabaseEnabled) return response.status(401).json({ error: 'Authentication required.' })
+    let profiles = await supabaseRequest(`profiles?id=eq.${user.id}&select=*`)
+    if (profiles.length === 0) {
+      profiles = await supabaseRequest('profiles', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ id: user.id }) })
+    }
+    response.json({ profile: profiles[0] })
+  } catch (error) { next(error) }
+})
+
+app.patch('/api/profile', async (request, response, next) => {
+  try {
+    const user = await getAuthenticatedUser(request)
+    const displayName = cleanText(request.body.displayName, 32)
+    if (!user || !isSupabaseEnabled) return response.status(401).json({ error: 'Authentication required.' })
+    const profiles = await supabaseRequest(`profiles?id=eq.${user.id}`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ display_name: displayName, updated_at: new Date().toISOString() }) })
+    response.json({ profile: profiles[0] })
+  } catch (error) { next(error) }
+})
+
 app.post('/api/favorites/:messageId', async (request, response, next) => {
   try {
     const user = await getAuthenticatedUser(request)
@@ -246,6 +303,7 @@ app.post('/api/messages', async (request, response, next) => {
     const content = cleanText(request.body.content, 280)
     const signature = cleanText(request.body.signature, 32)
     const mood = request.body.mood
+    const oneTime = request.body.oneTime === true
     const user = await getAuthenticatedUser(request)
 
     if (content.length < 3) {
@@ -263,14 +321,16 @@ app.post('/api/messages', async (request, response, next) => {
       content,
       signature,
       mood,
+      rarity: pickRarity(),
+      oneTime,
+      claimedAt: null,
       userId: user?.id || null,
       createdAt: new Date().toISOString(),
       reactions: { wave: 0, spark: 0, heart: 0 },
       replies: [],
     }
-    const messages = await readMessages()
-    messages.unshift(newMessage)
-    await saveMessages(messages)
+    if (isSupabaseEnabled) await createSupabaseMessage(newMessage)
+    else { const messages = await readMessages(); messages.unshift(newMessage); await saveMessages(messages) }
 
     response.status(201).json({ message: newMessage })
   } catch (error) {
@@ -296,7 +356,8 @@ app.post('/api/messages/:id/reactions', async (request, response, next) => {
     }
 
     message.reactions[type] += 1
-    await saveMessages(messages)
+    if (isSupabaseEnabled) await patchSupabaseMessage(message)
+    else await saveMessages(messages)
     response.json({ message })
   } catch (error) {
     next(error)
@@ -320,18 +381,60 @@ app.post('/api/messages/:id/replies', async (request, response, next) => {
       return
     }
 
-    message.replies.unshift({
+    const reply = {
       id: randomUUID(),
       content,
       createdAt: new Date().toISOString(),
-    })
+    }
+    message.replies.unshift(reply)
     message.replies = message.replies.slice(0, 5)
-    await saveMessages(messages)
+    if (isSupabaseEnabled) {
+      await createSupabaseReply(message.id, reply)
+      await patchSupabaseMessage(message)
+    } else await saveMessages(messages)
+
+    if (message.userId && isSupabaseEnabled) {
+      await supabaseRequest('notifications', {
+        method: 'POST',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({ user_id: message.userId, message_id: message.id, reply_id: reply.id }),
+      })
+    }
 
     response.status(201).json({ message })
   } catch (error) {
     next(error)
   }
+})
+
+app.get('/api/notifications', async (request, response, next) => {
+  try {
+    const user = await getAuthenticatedUser(request)
+    if (!user || !isSupabaseEnabled) return response.status(401).json({ error: 'Authentication required.' })
+    const notifications = await supabaseRequest(`notifications?user_id=eq.${user.id}&select=*&order=created_at.desc&limit=8`)
+    response.json({ notifications })
+  } catch (error) { next(error) }
+})
+
+app.get('/api/future-letters', async (request, response, next) => {
+  try {
+    const user = await getAuthenticatedUser(request)
+    if (!user || !isSupabaseEnabled) return response.status(401).json({ error: 'Authentication required.' })
+    const letters = await supabaseRequest(`future_letters?user_id=eq.${user.id}&select=*&order=unlock_at.asc`)
+    response.json({ letters })
+  } catch (error) { next(error) }
+})
+
+app.post('/api/future-letters', async (request, response, next) => {
+  try {
+    const user = await getAuthenticatedUser(request)
+    const content = cleanText(request.body.content, 500)
+    const unlockAt = new Date(request.body.unlockAt)
+    if (!user || !isSupabaseEnabled) return response.status(401).json({ error: 'Authentication required.' })
+    if (content.length < 3 || Number.isNaN(unlockAt.getTime()) || unlockAt <= new Date()) return response.status(400).json({ error: 'Choose a future date and write at least 3 characters.' })
+    const letters = await supabaseRequest('future_letters', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ user_id: user.id, content, unlock_at: unlockAt.toISOString() }) })
+    response.status(201).json({ letter: letters[0] })
+  } catch (error) { next(error) }
 })
 
 app.delete('/api/messages/:id', async (request, response, next) => {
@@ -350,8 +453,8 @@ app.delete('/api/messages/:id', async (request, response, next) => {
       return
     }
 
-    const remainingMessages = messages.filter((item) => item.id !== request.params.id)
-    await saveMessages(remainingMessages)
+    if (isSupabaseEnabled) await deleteSupabaseMessage(message.id)
+    else await saveMessages(messages.filter((item) => item.id !== request.params.id))
     response.status(204).end()
   } catch (error) {
     next(error)
