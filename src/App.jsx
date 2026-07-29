@@ -90,6 +90,7 @@ function App() {
   const [favoriteIds, setFavoriteIds] = useState([])
   const [displayName, setDisplayName] = useState('')
   const [notifications, setNotifications] = useState([])
+  const [futureLetters, setFutureLetters] = useState([])
   const [futureContent, setFutureContent] = useState('')
   const [futureDate, setFutureDate] = useState('')
   const [isAuthenticating, setIsAuthenticating] = useState(false)
@@ -161,6 +162,8 @@ function App() {
         loadMyMessages(storedToken)
         loadFavorites(storedToken)
         loadProfile(storedToken)
+        loadNotifications(storedToken)
+        loadFutureLetters(storedToken)
       })
       .catch(() => window.localStorage.removeItem('echobottle-session'))
   }, [])
@@ -197,6 +200,13 @@ function App() {
     setNotifications(data.notifications)
   }
 
+  const loadFutureLetters = async (token = authToken) => {
+    if (!token) return
+    const response = await fetch(`${API_BASE}/future-letters`, { headers: { Authorization: `Bearer ${token}` } })
+    const data = await readJson(response, 'Unable to load future letters.')
+    setFutureLetters(data.letters)
+  }
+
   const saveProfile = async (event) => {
     event.preventDefault()
     try {
@@ -215,6 +225,7 @@ function App() {
       await readJson(response, x('Unable to save future letter.', 'تعذر حفظ الرسالة المستقبلية.'))
       setFutureContent('')
       setFutureDate('')
+      await loadFutureLetters()
       setNotice({ type: 'success', text: x('Your letter is sealed for the future.', 'تم إغلاق رسالتك إلى المستقبل.') })
     } catch (error) { setNotice({ type: 'error', text: error.message }) }
   }
@@ -249,6 +260,7 @@ function App() {
       loadFavorites(data.access_token)
       loadProfile(data.access_token)
       loadNotifications(data.access_token)
+      loadFutureLetters(data.access_token)
       setAuthPassword('')
       setNotice({ type: 'success', text: x(`Welcome back, ${data.user.email}.`, `أهلًا بعودتك، ${data.user.email}.`) })
     } catch (error) {
@@ -273,6 +285,9 @@ function App() {
         window.localStorage.setItem('echobottle-session', data.session.access_token)
         loadMyMessages(data.session.access_token)
         loadFavorites(data.session.access_token)
+        loadProfile(data.session.access_token)
+        loadNotifications(data.session.access_token)
+        loadFutureLetters(data.session.access_token)
       }
       setAuthPassword('')
       setNotice({ type: 'success', text: data.session ? 'تم إنشاء حسابك وتسجيل دخولك.' : 'تم إنشاء الحساب. راجع بريدك لتأكيده ثم سجّل الدخول.' })
@@ -473,7 +488,7 @@ function App() {
           {page === 'auth' && <button className="back-home" type="button" onClick={() => navigate('home')}>← {x('Back to EchoBottle', 'العودة إلى EchoBottle')}</button>}
           {authUser ? (
             <div className="my-account">
-              <div><span>✦ {x('Signed in:', 'مسجل الدخول:')} {authUser.email}</span><button type="button" onClick={() => { loadMyMessages(); loadFavorites() }}>{x('Refresh', 'تحديث')}</button><button type="button" onClick={() => { window.localStorage.removeItem('echobottle-session'); setAuthUser(null); setAuthToken(null); setMyMessages([]); setFavoriteIds([]) }}>{x('Sign out', 'خروج')}</button></div>
+              <div><span>✦ {x('Signed in:', 'مسجل الدخول:')} {authUser.email}</span><button type="button" onClick={() => { loadMyMessages(); loadFavorites(); loadProfile(); loadNotifications(); loadFutureLetters() }}>{x('Refresh', 'تحديث')}</button><button type="button" onClick={() => { window.localStorage.removeItem('echobottle-session'); setAuthUser(null); setAuthToken(null); setMyMessages([]); setFavoriteIds([]); setNotifications([]); setFutureLetters([]) }}>{x('Sign out', 'خروج')}</button></div>
               <p className="my-account__title">{x('My messages', 'رسائلي')} ({myMessages.length})</p>
               <form className="profile-form" onSubmit={saveProfile}><input value={displayName} onChange={(event) => setDisplayName(event.target.value)} maxLength="32" placeholder={x('Choose a display name', 'اختر اسمًا مستعارًا')} /><button type="submit">{x('Save profile', 'حفظ الاسم')}</button></form>
               <div className="profile-stats"><span><strong>{profileStats.messages}</strong>{x('Messages', 'رسائل')}</span><span><strong>{profileStats.favorites}</strong>{x('Saved', 'محفوظة')}</span><span><strong>{profileStats.replies}</strong>{x('Replies', 'ردود')}</span><span><strong>{profileStats.reactions}</strong>{x('Reactions', 'تفاعلات')}</span></div>
@@ -484,6 +499,7 @@ function App() {
               })}</div> : <p className="my-account__empty">{x('No new replies yet.', 'لا توجد ردود جديدة بعد.')}</p>}
               <p className="my-account__title">{x('A letter to future you', 'رسالة إلى نفسك في المستقبل')}</p>
               <form className="future-letter-form" onSubmit={saveFutureLetter}><textarea value={futureContent} onChange={(event) => setFutureContent(event.target.value)} maxLength="500" placeholder={x('Write something future you should read…', 'اكتب شيئًا يجب أن تقرأه في المستقبل…')} required /><input type="datetime-local" value={futureDate} onChange={(event) => setFutureDate(event.target.value)} required /><button type="submit">{x('Seal this letter', 'أغلق الرسالة')}</button></form>
+              {futureLetters.length ? <div className="future-letter-list">{futureLetters.map((letter) => <article key={letter.id} className={letter.is_unlocked ? 'is-unlocked' : 'is-locked'}><time dateTime={letter.unlock_at}>{formatDate(letter.unlock_at)}</time><strong>{letter.is_unlocked ? x('Opened for you', 'فُتحت لك') : x('Sealed until this date', 'مغلقة حتى هذا الموعد')}</strong><p>{letter.is_unlocked ? letter.content : x('The words will remain hidden until their time arrives.', 'ستبقى الكلمات مخفية حتى يحين موعدها.')}</p></article>)}</div> : <p className="my-account__empty">{x('No future letters yet.', 'لا توجد رسائل مستقبلية بعد.')}</p>}
               {myMessages.length ? <div className="my-account__list">{myMessages.map((message) => <div key={message.id}><button type="button" onClick={() => setCurrentBottle(message)}>{preview(message.content, 46)} <small>♡ {(message.reactions?.heart ?? 0) + (message.reactions?.wave ?? 0) + (message.reactions?.spark ?? 0)} · ↳ {message.replies?.length ?? 0}</small></button><button type="button" className="delete-message" onClick={() => deleteMyMessage(message.id)}>حذف</button></div>)}</div> : <p className="my-account__empty">لا توجد رسائل مرتبطة بهذا الحساب بعد.</p>}
               <p className="my-account__title">{x('Saved', 'المفضلة')} ({favoriteMessages.length})</p>
               {favoriteMessages.length ? <div className="my-account__list">{favoriteMessages.map((message) => <div key={message.id}><button type="button" onClick={() => setCurrentBottle(message)}>{preview(message.content, 46)} <small>{getMood(message.mood).emoji} رسالة محفوظة</small></button></div>)}</div> : <p className="my-account__empty">احفظ رسالة تعجبك لتظهر هنا.</p>}

@@ -251,6 +251,12 @@
 .future-letter-form textarea, .future-letter-form input { width: 100%; padding: 8px; border: 1px solid rgba(242,199,121,.25); border-radius: 8px; color: #eaf8f4; background: rgba(4,20,31,.45); }
 .future-letter-form textarea { min-height: 70px; resize: vertical; }
 .future-letter-form button { color: #08232d; background: #f2c779; }
+.future-letter-list { display: grid; gap: 8px; margin-top: 10px; }
+.future-letter-list article { padding: 10px 12px; border: 1px solid rgba(125,211,199,.2); border-radius: 10px; background: rgba(4,20,31,.35); }
+.future-letter-list article.is-unlocked { border-color: rgba(242,199,121,.42); background: rgba(242,199,121,.07); }
+.future-letter-list time { display: block; color: #7dd3c7; font-size: .7rem; }
+.future-letter-list strong { display: block; margin-top: 3px; color: #fff8eb; font-size: .78rem; }
+.future-letter-list p { margin: 5px 0 0; color: #a9d7d5; font-size: .75rem; line-height: 1.55; }
 
 .panel {
   border: 1px solid rgba(213, 236, 230, 0.14);
