@@ -251,7 +251,10 @@ function App() {
       })
       if (!response.ok) await readJson(response, 'Unable to mark notification as read.')
       setNotifications((current) => current.filter((item) => item.id !== notification.id))
-      if (message) setCurrentBottle(message)
+      if (message) {
+        setCurrentBottle(message)
+        navigate('home')
+      }
     } catch (error) {
       setNotice({ type: 'error', text: error.message })
     }
@@ -514,9 +517,9 @@ function App() {
               <p className="my-account__title">{x('A letter to future you', 'رسالة إلى نفسك في المستقبل')}</p>
               <form className="future-letter-form" onSubmit={saveFutureLetter}><textarea value={futureContent} onChange={(event) => setFutureContent(event.target.value)} maxLength="500" placeholder={x('Write something future you should read…', 'اكتب شيئًا يجب أن تقرأه في المستقبل…')} required /><input type="datetime-local" value={futureDate} onChange={(event) => setFutureDate(event.target.value)} required /><button type="submit">{x('Seal this letter', 'أغلق الرسالة')}</button></form>
               {futureLetters.length ? <div className="future-letter-list">{futureLetters.map((letter) => <article key={letter.id} className={letter.is_unlocked ? 'is-unlocked' : 'is-locked'}><time dateTime={letter.unlock_at}>{formatDate(letter.unlock_at)}</time><strong>{letter.is_unlocked ? x('Opened for you', 'فُتحت لك') : x('Sealed until this date', 'مغلقة حتى هذا الموعد')}</strong><p>{letter.is_unlocked ? letter.content : x('The words will remain hidden until their time arrives.', 'ستبقى الكلمات مخفية حتى يحين موعدها.')}</p></article>)}</div> : <p className="my-account__empty">{x('No future letters yet.', 'لا توجد رسائل مستقبلية بعد.')}</p>}
-              {myMessages.length ? <div className="my-account__list">{myMessages.map((message) => <div key={message.id}><button type="button" onClick={() => setCurrentBottle(message)}>{preview(message.content, 46)} <small>♡ {(message.reactions?.heart ?? 0) + (message.reactions?.wave ?? 0) + (message.reactions?.spark ?? 0)} · ↳ {message.replies?.length ?? 0}</small></button><button type="button" className="delete-message" onClick={() => deleteMyMessage(message.id)}>حذف</button></div>)}</div> : <p className="my-account__empty">لا توجد رسائل مرتبطة بهذا الحساب بعد.</p>}
+              {myMessages.length ? <div className="my-account__list">{myMessages.map((message) => <div key={message.id}><button type="button" onClick={() => { setCurrentBottle(message); navigate('home') }}>{preview(message.content, 46)} <small>♡ {(message.reactions?.heart ?? 0) + (message.reactions?.wave ?? 0) + (message.reactions?.spark ?? 0)} · ↳ {message.replies?.length ?? 0}</small></button><button type="button" className="delete-message" onClick={() => deleteMyMessage(message.id)}>حذف</button></div>)}</div> : <p className="my-account__empty">لا توجد رسائل مرتبطة بهذا الحساب بعد.</p>}
               <p className="my-account__title">{x('Saved', 'المفضلة')} ({favoriteMessages.length})</p>
-              {favoriteMessages.length ? <div className="my-account__list">{favoriteMessages.map((message) => <div key={message.id}><button type="button" onClick={() => setCurrentBottle(message)}>{preview(message.content, 46)} <small>{getMood(message.mood).emoji} رسالة محفوظة</small></button></div>)}</div> : <p className="my-account__empty">احفظ رسالة تعجبك لتظهر هنا.</p>}
+              {favoriteMessages.length ? <div className="my-account__list">{favoriteMessages.map((message) => <div key={message.id}><button type="button" onClick={() => { setCurrentBottle(message); navigate('home') }}>{preview(message.content, 46)} <small>{getMood(message.mood).emoji} رسالة محفوظة</small></button></div>)}</div> : <p className="my-account__empty">احفظ رسالة تعجبك لتظهر هنا.</p>}
             </div>
           ) : (
             <div className="auth-card">
