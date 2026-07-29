@@ -498,6 +498,25 @@ function App() {
           </div>
         </nav>
 
+        <div className="nav-ecg" aria-hidden="true">
+          <svg viewBox="0 0 520 54" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="nav-ecg-gradient" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#ff9e7a" />
+                <stop offset="48%" stopColor="#f2c779" />
+                <stop offset="100%" stopColor="#7dd3c7" />
+              </linearGradient>
+              <filter id="nav-ecg-glow" x="-20%" y="-100%" width="140%" height="300%">
+                <feGaussianBlur stdDeviation="2.5" result="blur" />
+                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+              </filter>
+            </defs>
+            <path className="nav-ecg__base" d="M0 28H82L96 28L108 13L122 43L138 5L154 49L171 28H236L249 28L260 18L272 37L286 28H520" />
+            <path className="nav-ecg__pulse" d="M0 28H82L96 28L108 13L122 43L138 5L154 49L171 28H236L249 28L260 18L272 37L286 28H520" />
+          </svg>
+          <span />
+        </div>
+
         <button className="language-switch" type="button" onClick={() => setLanguage((current) => current === 'en' ? 'ar' : 'en')} aria-label="Change language">{t.switch}</button>
 
         <div className={`api-status api-status--${apiStatus}`}>
