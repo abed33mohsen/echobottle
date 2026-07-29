@@ -149,7 +149,7 @@ function App() {
 
   const toggleFavorite = async () => {
     if (!authToken || !currentBottle) {
-      setNotice({ type: 'error', text: 'سجّل الدخول أولًا لحفظ الرسائل.' })
+      setNotice({ type: 'error', text: x('Sign in first to save messages.', 'سجّل الدخول أولًا لحفظ الرسائل.') })
       return
     }
     const saved = favoriteIds.includes(currentBottle.id)
@@ -176,7 +176,7 @@ function App() {
       loadMyMessages(data.access_token)
       loadFavorites(data.access_token)
       setAuthPassword('')
-      setNotice({ type: 'success', text: `أهلًا بعودتك، ${data.user.email}.` })
+      setNotice({ type: 'success', text: x(`Welcome back, ${data.user.email}.`, `أهلًا بعودتك، ${data.user.email}.`) })
     } catch (error) {
       setNotice({ type: 'error', text: error.message })
     } finally {
@@ -210,7 +210,7 @@ function App() {
   }
 
   const deleteMyMessage = async (messageId) => {
-    if (!authToken || !window.confirm('هل تريد حذف هذه الرسالة نهائيًا؟')) return
+    if (!authToken || !window.confirm(x('Delete this message permanently?', 'هل تريد حذف هذه الرسالة نهائيًا؟'))) return
     try {
       const response = await fetch(`${API_BASE}/messages/${messageId}`, {
         method: 'DELETE',
@@ -220,7 +220,7 @@ function App() {
       setMyMessages((current) => current.filter((message) => message.id !== messageId))
       setMessages((current) => current.filter((message) => message.id !== messageId))
       setCurrentBottle((current) => current?.id === messageId ? null : current)
-      setNotice({ type: 'success', text: 'تم حذف الرسالة.' })
+      setNotice({ type: 'success', text: x('Message deleted.', 'تم حذف الرسالة.') })
     } catch (error) {
       setNotice({ type: 'error', text: error.message })
     }
@@ -255,7 +255,7 @@ function App() {
     event.preventDefault()
 
     if (form.content.trim().length < 3) {
-      setNotice({ type: 'error', text: 'اكتب رسالة من 3 أحرف على الأقل.' })
+      setNotice({ type: 'error', text: x('Write at least 3 characters.', 'اكتب رسالة من 3 أحرف على الأقل.') })
       return
     }
 
@@ -275,7 +275,7 @@ function App() {
       setForm({ content: '', signature: '', mood: 'curious' })
       setNotice({
         type: 'success',
-        text: 'انطلقت رسالتك في البحر. تستطيع الآن فتح رسالة جديدة.',
+        text: x('Your message is now drifting at sea. You can open a new bottle.', 'انطلقت رسالتك في البحر. تستطيع الآن فتح رسالة جديدة.'),
       })
     } catch (error) {
       setNotice({ type: 'error', text: error.message })
@@ -332,7 +332,7 @@ function App() {
     event.preventDefault()
 
     if (!currentBottle || replyText.trim().length < 3) {
-      setNotice({ type: 'error', text: 'اكتب ردًا قصيرًا من 3 أحرف على الأقل.' })
+      setNotice({ type: 'error', text: x('Write a reply with at least 3 characters.', 'اكتب ردًا قصيرًا من 3 أحرف على الأقل.') })
       return
     }
 
@@ -350,7 +350,7 @@ function App() {
       const data = await readJson(response, 'تعذر إرسال الرد.')
       syncMessage(data.message)
       setReplyText('')
-      setNotice({ type: 'success', text: 'وصل ردك إلى الزجاجة.' })
+      setNotice({ type: 'success', text: x('Your reply reached the bottle.', 'وصل ردك إلى الزجاجة.') })
     } catch (error) {
       setNotice({ type: 'error', text: error.message })
     } finally {
@@ -382,10 +382,10 @@ function App() {
         <section className="account-bar" aria-label={t.account}>
           {authUser ? (
             <div className="my-account">
-              <div><span>✦ مسجل الدخول: {authUser.email}</span><button type="button" onClick={() => { loadMyMessages(); loadFavorites() }}>تحديث</button><button type="button" onClick={() => { window.localStorage.removeItem('echobottle-session'); setAuthUser(null); setAuthToken(null); setMyMessages([]); setFavoriteIds([]) }}>خروج</button></div>
-              <p className="my-account__title">رسائلي ({myMessages.length})</p>
+              <div><span>✦ {x('Signed in:', 'مسجل الدخول:')} {authUser.email}</span><button type="button" onClick={() => { loadMyMessages(); loadFavorites() }}>{x('Refresh', 'تحديث')}</button><button type="button" onClick={() => { window.localStorage.removeItem('echobottle-session'); setAuthUser(null); setAuthToken(null); setMyMessages([]); setFavoriteIds([]) }}>{x('Sign out', 'خروج')}</button></div>
+              <p className="my-account__title">{x('My messages', 'رسائلي')} ({myMessages.length})</p>
               {myMessages.length ? <div className="my-account__list">{myMessages.map((message) => <div key={message.id}><button type="button" onClick={() => setCurrentBottle(message)}>{preview(message.content, 46)} <small>♡ {(message.reactions?.heart ?? 0) + (message.reactions?.wave ?? 0) + (message.reactions?.spark ?? 0)} · ↳ {message.replies?.length ?? 0}</small></button><button type="button" className="delete-message" onClick={() => deleteMyMessage(message.id)}>حذف</button></div>)}</div> : <p className="my-account__empty">لا توجد رسائل مرتبطة بهذا الحساب بعد.</p>}
-              <p className="my-account__title">المفضلة ({favoriteMessages.length})</p>
+              <p className="my-account__title">{x('Saved', 'المفضلة')} ({favoriteMessages.length})</p>
               {favoriteMessages.length ? <div className="my-account__list">{favoriteMessages.map((message) => <div key={message.id}><button type="button" onClick={() => setCurrentBottle(message)}>{preview(message.content, 46)} <small>{getMood(message.mood).emoji} رسالة محفوظة</small></button></div>)}</div> : <p className="my-account__empty">احفظ رسالة تعجبك لتظهر هنا.</p>}
             </div>
           ) : (
@@ -505,7 +505,7 @@ function App() {
                     <time dateTime={currentBottle.createdAt}>{formatDate(currentBottle.createdAt)}</time>
                   </div>
                   <blockquote>“{currentBottle.content}”</blockquote>
-                  <div className="message-signature"><span className="signature-line" />{currentBottle.signature || 'An anonymous voice'}</div>
+                  <div className="message-signature"><span className="signature-line" />{currentBottle.signature || x('An anonymous voice', 'صوت مجهول')}</div>
 
                   <div className="reaction-row" aria-label="Reactions">
                     {reactions.map((reaction) => (
@@ -601,7 +601,7 @@ function App() {
                   >
                     <span className="shelf-message__mood">{messageMood.emoji} {moodLabel(messageMood)}</span>
                     <strong>{preview(message.content)}</strong>
-                    <small>{message.signature || 'An anonymous voice'}</small>
+                    <small>{message.signature || x('An anonymous voice', 'صوت مجهول')}</small>
                   </button>
                 )
               })}
