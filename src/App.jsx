@@ -92,6 +92,7 @@ function App() {
   const [displayName, setDisplayName] = useState('')
   const [notifications, setNotifications] = useState([])
   const [futureLetters, setFutureLetters] = useState([])
+  const [adminStats, setAdminStats] = useState(null)
   const [futureContent, setFutureContent] = useState('')
   const [futureDate, setFutureDate] = useState('')
   const [isAuthenticating, setIsAuthenticating] = useState(false)
@@ -165,6 +166,7 @@ function App() {
         loadProfile(storedToken)
         loadNotifications(storedToken)
         loadFutureLetters(storedToken)
+        loadAdminStats(storedToken)
       })
       .catch(() => window.localStorage.removeItem('echobottle-session'))
   }, [])
@@ -206,6 +208,17 @@ function App() {
     const response = await fetch(`${API_BASE}/future-letters`, { headers: { Authorization: `Bearer ${token}` } })
     const data = await readJson(response, 'Unable to load future letters.')
     setFutureLetters(data.letters)
+  }
+
+  const loadAdminStats = async (token = authToken) => {
+    if (!token) return
+    const response = await fetch(`${API_BASE}/admin/stats`, { headers: { Authorization: `Bearer ${token}` } })
+    if (response.status === 403) {
+      setAdminStats(null)
+      return
+    }
+    const data = await readJson(response, 'Unable to load admin statistics.')
+    setAdminStats(data.stats)
   }
 
   const saveProfile = async (event) => {
@@ -279,6 +292,7 @@ function App() {
       loadProfile(data.access_token)
       loadNotifications(data.access_token)
       loadFutureLetters(data.access_token)
+      loadAdminStats(data.access_token)
       setAuthPassword('')
       setNotice({ type: 'success', text: x('Welcome back. Your account is ready.', 'أهلًا بعودتك. حسابك جاهز.') })
     } catch (error) {
@@ -306,6 +320,7 @@ function App() {
         loadProfile(data.session.access_token)
         loadNotifications(data.session.access_token)
         loadFutureLetters(data.session.access_token)
+        loadAdminStats(data.session.access_token)
       }
       setAuthPassword('')
       setNotice({ type: 'success', text: data.session ? 'تم إنشاء حسابك وتسجيل دخولك.' : 'تم إنشاء الحساب. راجع بريدك لتأكيده ثم سجّل الدخول.' })
@@ -534,7 +549,8 @@ function App() {
           {page === 'auth' && <button className="back-home" type="button" onClick={() => navigate('home')}>← {x('Back to EchoBottle', 'العودة إلى EchoBottle')}</button>}
           {authUser ? (
             <div className="my-account">
-              <div><span>✦ {x('Signed in:', 'مسجل الدخول:')} {authUser.email}</span><button type="button" onClick={() => { loadMyMessages(); loadFavorites(); loadProfile(); loadNotifications(); loadFutureLetters() }}>{x('Refresh', 'تحديث')}</button><button type="button" onClick={() => { window.localStorage.removeItem('echobottle-session'); setAuthUser(null); setAuthToken(null); setMyMessages([]); setFavoriteIds([]); setNotifications([]); setFutureLetters([]) }}>{x('Sign out', 'خروج')}</button></div>
+              <div><span>✦ {x('Signed in:', 'مسجل الدخول:')} {authUser.email}</span><button type="button" onClick={() => { loadMyMessages(); loadFavorites(); loadProfile(); loadNotifications(); loadFutureLetters(); loadAdminStats() }}>{x('Refresh', 'تحديث')}</button><button type="button" onClick={() => { window.localStorage.removeItem('echobottle-session'); setAuthUser(null); setAuthToken(null); setMyMessages([]); setFavoriteIds([]); setNotifications([]); setFutureLetters([]); setAdminStats(null) }}>{x('Sign out', 'خروج')}</button></div>
+              {adminStats && <section className="admin-dashboard"><div className="admin-dashboard__heading"><div><span>{x('Private dashboard', 'لوحة خاصة')}</span><h3>{x('Site pulse', 'نبض الموقع')}</h3></div><button type="button" onClick={() => loadAdminStats()}>{x('Refresh', 'تحديث')}</button></div><div className="admin-dashboard__grid"><span><strong>{adminStats.visitorsToday}</strong>{x('Visitors today', 'زوار اليوم')}</span><span><strong>{adminStats.onlineNow}</strong>{x('Online now', 'متصلون الآن')}</span><span><strong>{adminStats.registeredAccounts}</strong>{x('Accounts', 'حسابات')}</span><span><strong>{adminStats.messages}</strong>{x('Messages', 'رسائل')}</span><span><strong>{adminStats.replies}</strong>{x('Replies', 'ردود')}</span><span><strong>{adminStats.reactions}</strong>{x('Reactions', 'تفاعلات')}</span></div><p>{x('Visitors are counted with a daily anonymous hash; no raw IP addresses are stored.', 'يُحسب الزوار ببصمة يومية مجهولة، ولا يتم تخزين عناوين IP الأصلية.')}</p></section>}
               <p className="my-account__title">{x('My messages', 'رسائلي')} ({myMessages.length})</p>
               <form className="profile-form" onSubmit={saveProfile}><input value={displayName} onChange={(event) => setDisplayName(event.target.value)} maxLength="32" placeholder={x('Choose a display name', 'اختر اسمًا مستعارًا')} /><button type="submit">{x('Save profile', 'حفظ الاسم')}</button></form>
               <div className="profile-stats"><span><strong>{profileStats.messages}</strong>{x('Messages', 'رسائل')}</span><span><strong>{profileStats.favorites}</strong>{x('Saved', 'محفوظة')}</span><span><strong>{profileStats.replies}</strong>{x('Replies', 'ردود')}</span><span><strong>{profileStats.reactions}</strong>{x('Reactions', 'تفاعلات')}</span></div>

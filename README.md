@@ -39,6 +39,7 @@ SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
+ADMIN_EMAIL=your-admin-email@example.com
 ```
 
 يقبل السيرفر أيضًا الاسم `SUPABASE_SECRET_KEY`. لا ترفع `.env` إلى GitHub، ولا تضع مفتاح الخدمة في متغير يبدأ بـ `VITE_`.
@@ -99,3 +100,4 @@ node --env-file=../.env --check index.js
 - عمليات الحساب تمر عبر جلسة Supabase موثقة.
 - مفتاح الخدمة يستخدم في السيرفر فقط.
 - سياسات RLS تعزل بيانات كل مستخدم عن الآخرين.
+- لوحة المدير تعرض أعدادًا مجمعة فقط، وتستخدم بصمة زائر يومية مشفرة دون تخزين عنوان IP الخام.

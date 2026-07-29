@@ -55,11 +55,22 @@ create table if not exists public.future_letters (
 
 create index if not exists future_letters_user_unlock_idx on public.future_letters (user_id, unlock_at);
 
+create table if not exists public.site_visits (
+  visit_date date not null default current_date,
+  visitor_hash text not null check (char_length(visitor_hash) = 64),
+  last_seen timestamptz not null default now(),
+  primary key (visit_date, visitor_hash)
+);
+
+create index if not exists site_visits_last_seen_idx
+  on public.site_visits (last_seen desc);
+
 -- Keep account data private even when the publishable key is used directly.
 alter table public.favorites enable row level security;
 alter table public.profiles enable row level security;
 alter table public.notifications enable row level security;
 alter table public.future_letters enable row level security;
+alter table public.site_visits enable row level security;
 
 drop policy if exists "Users can read their favorites" on public.favorites;
 create policy "Users can read their favorites" on public.favorites

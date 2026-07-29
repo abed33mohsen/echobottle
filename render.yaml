@@ -19,3 +19,5 @@ services:
         sync: false
       - key: VITE_SUPABASE_PUBLISHABLE_KEY
         sync: false
+      - key: ADMIN_EMAIL
+        sync: false

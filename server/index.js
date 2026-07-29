@@ -1,6 +1,6 @@
 import cors from 'cors'
 import express from 'express'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -154,6 +154,26 @@ function toPublicMessage(message) {
   return publicMessage
 }
 
+async function recordVisit(request) {
+  if (!isSupabaseEnabled) return
+  const forwardedFor = request.headers['x-forwarded-for']?.split(',')[0]?.trim() || request.ip || ''
+  const userAgent = request.headers['user-agent'] || ''
+  const visitDate = new Date().toISOString().slice(0, 10)
+  const visitorHash = createHash('sha256')
+    .update(`${visitDate}:${forwardedFor}:${userAgent}:${process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY}`)
+    .digest('hex')
+
+  await supabaseRequest('site_visits?on_conflict=visit_date,visitor_hash', {
+    method: 'POST',
+    headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify({
+      visit_date: visitDate,
+      visitor_hash: visitorHash,
+      last_seen: new Date().toISOString(),
+    }),
+  })
+}
+
 async function getAuthenticatedUser(request) {
   const token = request.headers.authorization?.replace(/^Bearer\s+/i, '')
   const serviceKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -177,6 +197,7 @@ app.get('/api/health', (_request, response) => {
 
 app.get('/api/messages', async (request, response, next) => {
   try {
+    await recordVisit(request).catch((error) => console.warn('Visit tracking failed:', error.message))
     const messages = await readMessages()
     const mood = request.query.mood
     const filteredMessages = (allowedMoods.has(mood)
@@ -431,6 +452,40 @@ app.get('/api/notifications', async (request, response, next) => {
     if (!user || !isSupabaseEnabled) return response.status(401).json({ error: 'Authentication required.' })
     const notifications = await supabaseRequest(`notifications?user_id=eq.${user.id}&is_read=eq.false&select=*&order=created_at.desc&limit=8`)
     response.json({ notifications })
+  } catch (error) { next(error) }
+})
+
+app.get('/api/admin/stats', async (request, response, next) => {
+  try {
+    const user = await getAuthenticatedUser(request)
+    const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase()
+    if (!user || !adminEmail || user.email?.toLowerCase() !== adminEmail) {
+      return response.status(403).json({ error: 'Admin access required.' })
+    }
+
+    const today = new Date().toISOString().slice(0, 10)
+    const onlineSince = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+    const [visits, onlineVisits, profiles, messages] = await Promise.all([
+      supabaseRequest(`site_visits?visit_date=eq.${today}&select=visitor_hash`),
+      supabaseRequest(`site_visits?last_seen=gte.${onlineSince}&select=visitor_hash`),
+      supabaseRequest('profiles?select=id'),
+      readMessages(),
+    ])
+    const reactions = messages.reduce(
+      (total, message) => total + Object.values(message.reactions || {}).reduce((sum, count) => sum + count, 0),
+      0,
+    )
+
+    response.json({
+      stats: {
+        visitorsToday: visits.length,
+        onlineNow: onlineVisits.length,
+        registeredAccounts: profiles.length,
+        messages: messages.length,
+        replies: messages.reduce((total, message) => total + message.replies.length, 0),
+        reactions,
+      },
+    })
   } catch (error) { next(error) }
 })
 

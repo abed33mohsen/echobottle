@@ -257,6 +257,14 @@
 .future-letter-list time { display: block; color: #7dd3c7; font-size: .7rem; }
 .future-letter-list strong { display: block; margin-top: 3px; color: #fff8eb; font-size: .78rem; }
 .future-letter-list p { margin: 5px 0 0; color: #a9d7d5; font-size: .75rem; line-height: 1.55; }
+.admin-dashboard { margin: 14px 0; padding: 14px; border: 1px solid rgba(242,199,121,.3); border-radius: 14px; background: linear-gradient(145deg, rgba(242,199,121,.08), rgba(125,211,199,.05)); }
+.admin-dashboard__heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.admin-dashboard__heading span { color: #f2c779; font-size: .66rem; font-weight: 800; text-transform: uppercase; letter-spacing: .09em; }
+.admin-dashboard__heading h3 { margin: 2px 0 0; color: #fff8eb; font-size: 1rem; }
+.admin-dashboard__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-top: 12px; }
+.admin-dashboard__grid span { display: grid; gap: 2px; padding: 9px; border-radius: 9px; color: #8fc7c2; background: rgba(4,20,31,.38); font-size: .68rem; text-align: center; }
+.admin-dashboard__grid strong { color: #fff5dc; font-size: 1.05rem; }
+.admin-dashboard > p { margin: 10px 0 0; color: #789f9d; font-size: .65rem; line-height: 1.5; }
 
 .panel {
   border: 1px solid rgba(213, 236, 230, 0.14);
@@ -821,6 +829,7 @@ button:disabled { cursor: wait; opacity: 0.65; transform: none !important; }
   .discover-panel,
   .shoreline { padding: 20px; border-radius: 16px; }
   .mood-options { grid-template-columns: repeat(2, 1fr); }
+  .admin-dashboard__grid { grid-template-columns: repeat(2, 1fr); }
   .bottle-stage { min-height: 365px; }
   .message-card { margin: 12px; padding: 16px; }
   .message-card blockquote { min-height: 85px; }
