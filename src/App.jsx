@@ -481,6 +481,14 @@ function App() {
         </a>
 
         <nav className={`main-nav ${navOpen ? 'is-open' : ''}`} aria-label={x('Main navigation', 'التنقل الرئيسي')}>
+          <div className={`nav-heart ${heartBurst > 0 ? 'is-loved' : ''}`} key={heartBurst} aria-hidden="true">
+            <span className="nav-heart__spark nav-heart__spark--one" />
+            <span className="nav-heart__spark nav-heart__spark--two" />
+            <span className="nav-heart__spark nav-heart__spark--three" />
+            <svg viewBox="0 0 100 90">
+              <path d="M50 82C41 69 12 52 12 28C12 11 33 5 50 24C67 5 88 11 88 28C88 52 59 69 50 82Z" />
+            </svg>
+          </div>
           <button className="nav-orb" type="button" onClick={() => setNavOpen((current) => !current)} aria-expanded={navOpen} aria-label={x('Open navigation', 'فتح القائمة')}>☾</button>
           <div className="nav-links">
             <a href="#compose" onClick={() => setNavOpen(false)}>{x('Write', 'اكتب')}</a>
@@ -754,20 +762,6 @@ function App() {
           )}
         </section>
       </main>
-
-      {heartBurst > 0 && (
-        <div className="heart-tide" key={heartBurst} aria-hidden="true">
-          <div className="heart-tide__particles">
-            {Array.from({ length: 18 }, (_, index) => <span key={index} style={{ '--particle-index': index }} />)}
-          </div>
-          <svg className="heart-tide__heart" viewBox="0 0 100 90" onAnimationEnd={(event) => {
-            if (event.animationName === 'heart-tide-fade') setHeartBurst(0)
-          }}>
-            <path d="M50 82C41 69 12 52 12 28C12 11 33 5 50 24C67 5 88 11 88 28C88 52 59 69 50 82Z" />
-          </svg>
-          <span className="heart-tide__label">{x('A heart reached the shore', 'وصل قلب إلى الشاطئ')}</span>
-        </div>
-      )}
 
       <footer className="site-footer">
         <span>EchoBottle — A React + Node.js project</span>
