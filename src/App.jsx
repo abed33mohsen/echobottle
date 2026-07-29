@@ -280,7 +280,7 @@ function App() {
       loadNotifications(data.access_token)
       loadFutureLetters(data.access_token)
       setAuthPassword('')
-      setNotice({ type: 'success', text: x(`Welcome back, ${data.user.email}.`, `أهلًا بعودتك، ${data.user.email}.`) })
+      setNotice({ type: 'success', text: x('Welcome back. Your account is ready.', 'أهلًا بعودتك. حسابك جاهز.') })
     } catch (error) {
       setNotice({ type: 'error', text: error.message })
     } finally {
