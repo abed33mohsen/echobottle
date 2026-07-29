@@ -23,6 +23,20 @@ const reactions = [
   { id: 'spark', emoji: '✦', label: 'Thoughtful' },
   { id: 'heart', emoji: '♡', label: 'Loved it' },
 ]
+const rarities = {
+  common: { emoji: '◌', en: 'Common', ar: 'عادية' },
+  golden: { emoji: '✦', en: 'Golden', ar: 'ذهبية' },
+  night: { emoji: '☾', en: 'Night', ar: 'ليلية' },
+  coral: { emoji: '◒', en: 'Coral', ar: 'مرجانية' },
+  legendary: { emoji: '✺', en: 'Legendary', ar: 'أسطورية' },
+}
+
+const writingPrompts = [
+  ['What is a small thing that made you smile today?', 'ما الشيء الصغير الذي جعلك تبتسم اليوم؟'],
+  ['Write one sentence you wish someone had told you.', 'اكتب جملة تتمنى لو أن شخصًا قالها لك.'],
+  ['What would you leave for a stranger on a quiet shore?', 'ماذا تترك لغريب على شاطئ هادئ؟'],
+  ['Describe a moment you want to remember.', 'صف لحظة تريد أن تتذكرها.'],
+]
 
 function getMood(moodId) {
   return moods.find((mood) => mood.id === moodId) ?? moods[0]
@@ -58,7 +72,7 @@ function preview(text, length = 80) {
 function App() {
   const [messages, setMessages] = useState([])
   const [currentBottle, setCurrentBottle] = useState(null)
-  const [form, setForm] = useState({ content: '', signature: '', mood: 'curious' })
+  const [form, setForm] = useState({ content: '', signature: '', mood: 'curious', oneTime: false })
   const [exploreMood, setExploreMood] = useState('all')
   const [replyText, setReplyText] = useState('')
   const [seenBottleIds, setSeenBottleIds] = useState([])
@@ -74,13 +88,22 @@ function App() {
   const [authToken, setAuthToken] = useState(null)
   const [myMessages, setMyMessages] = useState([])
   const [favoriteIds, setFavoriteIds] = useState([])
+  const [displayName, setDisplayName] = useState('')
+  const [notifications, setNotifications] = useState([])
+  const [futureContent, setFutureContent] = useState('')
+  const [futureDate, setFutureDate] = useState('')
   const [isAuthenticating, setIsAuthenticating] = useState(false)
   const [isSigningUp, setIsSigningUp] = useState(false)
   const [authMode, setAuthMode] = useState('signup')
   const [language, setLanguage] = useState(() => window.localStorage.getItem('echobottle-language') || 'en')
+  const [promptIndex, setPromptIndex] = useState(() => new Date().getDate() % writingPrompts.length)
+  const [navOpen, setNavOpen] = useState(false)
+  const [page, setPage] = useState(() => window.location.pathname === '/auth' ? 'auth' : 'home')
   const t = copy[language]
   const x = (en, ar) => language === 'ar' ? ar : en
   const moodLabel = (mood) => language === 'ar' ? mood.arLabel : mood.label
+  const rarity = (id) => rarities[id] || rarities.common
+  const prompt = writingPrompts[promptIndex][language === 'ar' ? 1 : 0]
 
   const currentMood = useMemo(
     () => (currentBottle ? getMood(currentBottle.mood) : null),
@@ -115,6 +138,18 @@ function App() {
   }, [language])
 
   useEffect(() => {
+    const handlePopState = () => setPage(window.location.pathname === '/auth' ? 'auth' : 'home')
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
+
+  const navigate = (nextPage) => {
+    window.history.pushState({}, '', nextPage === 'auth' ? '/auth' : '/')
+    setPage(nextPage)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  useEffect(() => {
     const storedToken = window.localStorage.getItem('echobottle-session')
     if (!storedToken || !SUPABASE_URL || !SUPABASE_KEY) return
 
@@ -125,6 +160,7 @@ function App() {
         setAuthToken(storedToken)
         loadMyMessages(storedToken)
         loadFavorites(storedToken)
+        loadProfile(storedToken)
       })
       .catch(() => window.localStorage.removeItem('echobottle-session'))
   }, [])
@@ -145,6 +181,42 @@ function App() {
     const response = await fetch(`${API_BASE}/favorites`, { headers: { Authorization: `Bearer ${token}` } })
     const data = await readJson(response, 'تعذر تحميل المفضلة.')
     setFavoriteIds(data.messageIds)
+  }
+
+  const loadProfile = async (token = authToken) => {
+    if (!token) return
+    const response = await fetch(`${API_BASE}/profile`, { headers: { Authorization: `Bearer ${token}` } })
+    const data = await readJson(response, 'Unable to load profile.')
+    setDisplayName(data.profile.display_name || '')
+  }
+
+  const loadNotifications = async (token = authToken) => {
+    if (!token) return
+    const response = await fetch(`${API_BASE}/notifications`, { headers: { Authorization: `Bearer ${token}` } })
+    const data = await readJson(response, 'Unable to load notifications.')
+    setNotifications(data.notifications)
+  }
+
+  const saveProfile = async (event) => {
+    event.preventDefault()
+    try {
+      const response = await fetch(`${API_BASE}/profile`, { method: 'PATCH', headers: { Authorization: `Bearer ${authToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ displayName }) })
+      await readJson(response, x('Unable to save profile.', 'تعذر حفظ الملف الشخصي.'))
+      setNotice({ type: 'success', text: x('Profile saved.', 'تم حفظ الملف الشخصي.') })
+    } catch (error) {
+      setNotice({ type: 'error', text: error.message })
+    }
+  }
+
+  const saveFutureLetter = async (event) => {
+    event.preventDefault()
+    try {
+      const response = await fetch(`${API_BASE}/future-letters`, { method: 'POST', headers: { Authorization: `Bearer ${authToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ content: futureContent, unlockAt: futureDate }) })
+      await readJson(response, x('Unable to save future letter.', 'تعذر حفظ الرسالة المستقبلية.'))
+      setFutureContent('')
+      setFutureDate('')
+      setNotice({ type: 'success', text: x('Your letter is sealed for the future.', 'تم إغلاق رسالتك إلى المستقبل.') })
+    } catch (error) { setNotice({ type: 'error', text: error.message }) }
   }
 
   const toggleFavorite = async () => {
@@ -175,6 +247,8 @@ function App() {
       window.localStorage.setItem('echobottle-session', data.access_token)
       loadMyMessages(data.access_token)
       loadFavorites(data.access_token)
+      loadProfile(data.access_token)
+      loadNotifications(data.access_token)
       setAuthPassword('')
       setNotice({ type: 'success', text: x(`Welcome back, ${data.user.email}.`, `أهلًا بعودتك، ${data.user.email}.`) })
     } catch (error) {
@@ -230,6 +304,12 @@ function App() {
     () => messages.filter((message) => favoriteIds.includes(message.id)),
     [messages, favoriteIds],
   )
+  const profileStats = useMemo(() => ({
+    messages: myMessages.length,
+    favorites: favoriteIds.length,
+    replies: myMessages.reduce((total, message) => total + (message.replies?.length ?? 0), 0),
+    reactions: myMessages.reduce((total, message) => total + Object.values(message.reactions || {}).reduce((sum, count) => sum + count, 0), 0),
+  }), [myMessages, favoriteIds])
 
   const syncMessage = (updatedMessage) => {
     setCurrentBottle((current) =>
@@ -272,7 +352,7 @@ function App() {
 
       setMessages((current) => [data.message, ...current])
       setCurrentBottle(data.message)
-      setForm({ content: '', signature: '', mood: 'curious' })
+      setForm({ content: '', signature: '', mood: 'curious', oneTime: false })
       setNotice({
         type: 'success',
         text: x('Your message is now drifting at sea. You can open a new bottle.', 'انطلقت رسالتك في البحر. تستطيع الآن فتح رسالة جديدة.'),
@@ -359,12 +439,22 @@ function App() {
   }
 
   return (
-    <div className="app">
+    <div className={`app ${page === 'auth' ? 'app--auth' : ''}`}>
       <header className="site-header">
-        <a className="brand" href="#top" aria-label="EchoBottle home">
+        <a className="brand" href="/" onClick={(event) => { event.preventDefault(); navigate('home') }} aria-label="EchoBottle home">
           <span className="brand-bottle" aria-hidden="true"><span /></span>
           <span>EchoBottle</span>
         </a>
+
+        <nav className={`main-nav ${navOpen ? 'is-open' : ''}`} aria-label={x('Main navigation', 'التنقل الرئيسي')}>
+          <button className="nav-orb" type="button" onClick={() => setNavOpen((current) => !current)} aria-expanded={navOpen} aria-label={x('Open navigation', 'فتح القائمة')}>☾</button>
+          <div className="nav-links">
+            <a href="#compose" onClick={() => setNavOpen(false)}>{x('Write', 'اكتب')}</a>
+            <a href="#discover" onClick={() => setNavOpen(false)}>{x('Discover', 'اكتشف')}</a>
+            <a href="#shoreline" onClick={() => setNavOpen(false)}>{x('Shoreline', 'الشاطئ')}</a>
+            {authUser ? <button className="main-nav__profile" type="button" onClick={() => { setNavOpen(false); navigate('auth') }}>{x('Profile', 'الملف الشخصي')}{displayName ? ` · ${displayName}` : ''}</button> : <button className="main-nav__account" type="button" onClick={() => { setNavOpen(false); navigate('auth') }}>{x('Sign in / Create account', 'تسجيل الدخول / إنشاء حساب')}</button>}
+          </div>
+        </nav>
 
         <button className="language-switch" type="button" onClick={() => setLanguage((current) => current === 'en' ? 'ar' : 'en')} aria-label="Change language">{t.switch}</button>
 
@@ -379,11 +469,21 @@ function App() {
       </header>
 
       <main id="top" className="page-shell">
-        <section className="account-bar" aria-label={t.account}>
+        <section id="account" className={`account-bar ${page === 'home' ? 'account-bar--hidden' : ''}`} aria-label={t.account}>
+          {page === 'auth' && <button className="back-home" type="button" onClick={() => navigate('home')}>← {x('Back to EchoBottle', 'العودة إلى EchoBottle')}</button>}
           {authUser ? (
             <div className="my-account">
               <div><span>✦ {x('Signed in:', 'مسجل الدخول:')} {authUser.email}</span><button type="button" onClick={() => { loadMyMessages(); loadFavorites() }}>{x('Refresh', 'تحديث')}</button><button type="button" onClick={() => { window.localStorage.removeItem('echobottle-session'); setAuthUser(null); setAuthToken(null); setMyMessages([]); setFavoriteIds([]) }}>{x('Sign out', 'خروج')}</button></div>
               <p className="my-account__title">{x('My messages', 'رسائلي')} ({myMessages.length})</p>
+              <form className="profile-form" onSubmit={saveProfile}><input value={displayName} onChange={(event) => setDisplayName(event.target.value)} maxLength="32" placeholder={x('Choose a display name', 'اختر اسمًا مستعارًا')} /><button type="submit">{x('Save profile', 'حفظ الاسم')}</button></form>
+              <div className="profile-stats"><span><strong>{profileStats.messages}</strong>{x('Messages', 'رسائل')}</span><span><strong>{profileStats.favorites}</strong>{x('Saved', 'محفوظة')}</span><span><strong>{profileStats.replies}</strong>{x('Replies', 'ردود')}</span><span><strong>{profileStats.reactions}</strong>{x('Reactions', 'تفاعلات')}</span></div>
+              <p className="my-account__title">{x('New replies', 'ردود جديدة')} ({notifications.length})</p>
+              {notifications.length ? <div className="notification-list">{notifications.map((notification) => {
+                const message = myMessages.find((item) => item.id === notification.message_id)
+                return <button type="button" key={notification.id} onClick={() => message && setCurrentBottle(message)}>{x('Someone replied to:', 'شخص رد على:')} {message ? preview(message.content, 34) : x('your bottle', 'رسالتك')}</button>
+              })}</div> : <p className="my-account__empty">{x('No new replies yet.', 'لا توجد ردود جديدة بعد.')}</p>}
+              <p className="my-account__title">{x('A letter to future you', 'رسالة إلى نفسك في المستقبل')}</p>
+              <form className="future-letter-form" onSubmit={saveFutureLetter}><textarea value={futureContent} onChange={(event) => setFutureContent(event.target.value)} maxLength="500" placeholder={x('Write something future you should read…', 'اكتب شيئًا يجب أن تقرأه في المستقبل…')} required /><input type="datetime-local" value={futureDate} onChange={(event) => setFutureDate(event.target.value)} required /><button type="submit">{x('Seal this letter', 'أغلق الرسالة')}</button></form>
               {myMessages.length ? <div className="my-account__list">{myMessages.map((message) => <div key={message.id}><button type="button" onClick={() => setCurrentBottle(message)}>{preview(message.content, 46)} <small>♡ {(message.reactions?.heart ?? 0) + (message.reactions?.wave ?? 0) + (message.reactions?.spark ?? 0)} · ↳ {message.replies?.length ?? 0}</small></button><button type="button" className="delete-message" onClick={() => deleteMyMessage(message.id)}>حذف</button></div>)}</div> : <p className="my-account__empty">لا توجد رسائل مرتبطة بهذا الحساب بعد.</p>}
               <p className="my-account__title">{x('Saved', 'المفضلة')} ({favoriteMessages.length})</p>
               {favoriteMessages.length ? <div className="my-account__list">{favoriteMessages.map((message) => <div key={message.id}><button type="button" onClick={() => setCurrentBottle(message)}>{preview(message.content, 46)} <small>{getMood(message.mood).emoji} رسالة محفوظة</small></button></div>)}</div> : <p className="my-account__empty">احفظ رسالة تعجبك لتظهر هنا.</p>}
@@ -411,6 +511,7 @@ function App() {
             {x('EchoBottle is an anonymous space for leaving a short note and finding one left behind by a stranger.', 'EchoBottle مساحة مجهولة، تترك فيها رسالة قصيرة وتجد رسالة عشوائية تركها شخص لا تعرفه.')}
           </p>
           <div className="hero-tide" aria-hidden="true"><span /><span /><span /></div>
+          <div className="daily-note"><span>✦ {x('Message of the day', 'رسالة اليوم')}</span><strong>{x('You are allowed to begin again, quietly.', 'يحق لك أن تبدأ من جديد، بهدوء.')}</strong></div>
         </section>
 
         {notice && (
@@ -422,7 +523,7 @@ function App() {
         )}
 
         <section className="workspace" aria-label="Message workspace">
-          <section className="compose-panel panel" aria-labelledby="compose-title">
+          <section id="compose" className="compose-panel panel" aria-labelledby="compose-title">
             <div className="panel-heading">
               <div>
                 <p className="section-kicker">01 — {x('WRITE', 'أرسل')}</p>
@@ -433,6 +534,7 @@ function App() {
 
             <form className="message-form" onSubmit={handleSubmit}>
               <label className="field-label" htmlFor="message-content">{x('What would you like to tell the sea?', 'ما الذي تريد أن تقوله للبحر؟')}</label>
+              <button className="prompt-button" type="button" onClick={() => setPromptIndex((current) => (current + 1) % writingPrompts.length)}>✦ {x('Writing prompt:', 'فكرة للكتابة:')} {prompt}</button>
               <textarea
                 id="message-content"
                 name="content"
@@ -463,6 +565,12 @@ function App() {
                 </div>
               </fieldset>
 
+              <label className={`one-time-option ${form.oneTime ? 'is-selected' : ''}`}>
+                <input type="checkbox" checked={form.oneTime} onChange={(event) => setForm((current) => ({ ...current, oneTime: event.target.checked }))} />
+                <span>◒</span>
+                <div><strong>{x('One Tide', 'موجة واحدة')}</strong><small>{x('Disappears after one person opens it.', 'تختفي بعد أن يفتحها شخص واحد.')}</small></div>
+              </label>
+
               <label className="field-label field-label--optional" htmlFor="signature">
                 {x('Optional signature', 'توقيع اختياري')} <span>— {x('leave it empty to stay anonymous', 'اتركه فارغًا لتبقى مجهولًا')}</span>
               </label>
@@ -482,7 +590,7 @@ function App() {
             </form>
           </section>
 
-          <section className="discover-panel panel" aria-labelledby="discover-title">
+          <section id="discover" className="discover-panel panel" aria-labelledby="discover-title">
             <div className="panel-heading panel-heading--discover">
               <div>
                 <p className="section-kicker">02 — {x('DISCOVER', 'اكتشف')}</p>
@@ -499,9 +607,9 @@ function App() {
 
             <div className="bottle-stage">
               {currentBottle ? (
-                <article className="message-card" style={{ '--message-color': currentMood.color }}>
+                <article className={`message-card message-card--${currentBottle.rarity || 'common'}`} style={{ '--message-color': currentMood.color }}>
                   <div className="message-card__topline">
-                    <span className="mood-badge"><span aria-hidden="true">{currentMood.emoji}</span>{moodLabel(currentMood)}</span>
+                    <span className="mood-badge"><span aria-hidden="true">{currentMood.emoji}</span>{moodLabel(currentMood)}</span><span className="rarity-badge">{rarity(currentBottle.rarity).emoji} {language === 'ar' ? rarity(currentBottle.rarity).ar : rarity(currentBottle.rarity).en}</span>
                     <time dateTime={currentBottle.createdAt}>{formatDate(currentBottle.createdAt)}</time>
                   </div>
                   <blockquote>“{currentBottle.content}”</blockquote>
@@ -574,7 +682,7 @@ function App() {
           </section>
         </section>
 
-        <section className="shoreline panel" aria-labelledby="shoreline-title">
+        <section id="shoreline" className="shoreline panel" aria-labelledby="shoreline-title">
           <div className="shoreline-heading">
             <div>
               <p className="section-kicker">{x('JUST ARRIVED', 'ما وصل حديثًا')}</p>

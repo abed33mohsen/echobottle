@@ -29,6 +29,9 @@ function fromRow(row) {
     content: row.content,
     signature: row.signature,
     mood: row.mood,
+    rarity: row.rarity || 'common',
+    oneTime: Boolean(row.one_time),
+    claimedAt: row.claimed_at,
     userId: row.user_id,
     createdAt: row.created_at,
     reactions: { wave: row.wave_count, spark: row.spark_count, heart: row.heart_count },
@@ -46,6 +49,9 @@ function messageRow(message) {
     content: message.content,
     signature: message.signature,
     mood: message.mood,
+    rarity: message.rarity || 'common',
+    one_time: Boolean(message.oneTime),
+    claimed_at: message.claimedAt || null,
     user_id: message.userId,
     created_at: message.createdAt,
     wave_count: message.reactions.wave,
@@ -86,4 +92,20 @@ export async function replaceSupabaseMessages(messages) {
       body: JSON.stringify(replies),
     })
   }
+}
+
+export async function createSupabaseMessage(message) {
+  await request('messages', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(messageRow(message)) })
+}
+
+export async function patchSupabaseMessage(message) {
+  await request(`messages?id=eq.${message.id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(messageRow(message)) })
+}
+
+export async function createSupabaseReply(messageId, reply) {
+  await request('replies', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ id: reply.id, message_id: messageId, content: reply.content, created_at: reply.createdAt }) })
+}
+
+export async function deleteSupabaseMessage(messageId) {
+  await request(`messages?id=eq.${messageId}`, { method: 'DELETE' })
 }
