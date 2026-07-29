@@ -81,6 +81,7 @@ function App() {
   const [isSending, setIsSending] = useState(false)
   const [isOpening, setIsOpening] = useState(false)
   const [isReacting, setIsReacting] = useState(false)
+  const [heartBurst, setHeartBurst] = useState(0)
   const [isReplying, setIsReplying] = useState(false)
   const [authEmail, setAuthEmail] = useState('')
   const [authPassword, setAuthPassword] = useState('')
@@ -433,6 +434,7 @@ function App() {
       )
       const data = await readJson(response, 'تعذر حفظ التفاعل.')
       syncMessage(data.message)
+      if (reaction.id === 'heart') setHeartBurst((current) => current + 1)
     } catch (error) {
       setNotice({ type: 'error', text: error.message })
     } finally {
@@ -752,6 +754,20 @@ function App() {
           )}
         </section>
       </main>
+
+      {heartBurst > 0 && (
+        <div className="heart-tide" key={heartBurst} aria-hidden="true">
+          <div className="heart-tide__particles">
+            {Array.from({ length: 18 }, (_, index) => <span key={index} style={{ '--particle-index': index }} />)}
+          </div>
+          <svg className="heart-tide__heart" viewBox="0 0 100 90" onAnimationEnd={(event) => {
+            if (event.animationName === 'heart-tide-fade') setHeartBurst(0)
+          }}>
+            <path d="M50 82C41 69 12 52 12 28C12 11 33 5 50 24C67 5 88 11 88 28C88 52 59 69 50 82Z" />
+          </svg>
+          <span className="heart-tide__label">{x('A heart reached the shore', 'وصل قلب إلى الشاطئ')}</span>
+        </div>
+      )}
 
       <footer className="site-footer">
         <span>EchoBottle — A React + Node.js project</span>
