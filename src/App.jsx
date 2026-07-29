@@ -221,7 +221,7 @@ function App() {
   const saveFutureLetter = async (event) => {
     event.preventDefault()
     try {
-      const response = await fetch(`${API_BASE}/future-letters`, { method: 'POST', headers: { Authorization: `Bearer ${authToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ content: futureContent, unlockAt: futureDate }) })
+      const response = await fetch(`${API_BASE}/future-letters`, { method: 'POST', headers: { Authorization: `Bearer ${authToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ content: futureContent, unlockAt: new Date(futureDate).toISOString() }) })
       await readJson(response, x('Unable to save future letter.', 'تعذر حفظ الرسالة المستقبلية.'))
       setFutureContent('')
       setFutureDate('')
@@ -241,6 +241,20 @@ function App() {
       if (!response.ok) await readJson(response, 'تعذر تحديث المفضلة.')
       setFavoriteIds((current) => saved ? current.filter((id) => id !== currentBottle.id) : [...current, currentBottle.id])
     } catch (error) { setNotice({ type: 'error', text: error.message }) }
+  }
+
+  const openNotification = async (notification, message) => {
+    try {
+      const response = await fetch(`${API_BASE}/notifications/${notification.id}/read`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${authToken}` },
+      })
+      if (!response.ok) await readJson(response, 'Unable to mark notification as read.')
+      setNotifications((current) => current.filter((item) => item.id !== notification.id))
+      if (message) setCurrentBottle(message)
+    } catch (error) {
+      setNotice({ type: 'error', text: error.message })
+    }
   }
 
   const authenticate = async (event) => {
@@ -495,7 +509,7 @@ function App() {
               <p className="my-account__title">{x('New replies', 'ردود جديدة')} ({notifications.length})</p>
               {notifications.length ? <div className="notification-list">{notifications.map((notification) => {
                 const message = myMessages.find((item) => item.id === notification.message_id)
-                return <button type="button" key={notification.id} onClick={() => message && setCurrentBottle(message)}>{x('Someone replied to:', 'شخص رد على:')} {message ? preview(message.content, 34) : x('your bottle', 'رسالتك')}</button>
+                return <button type="button" key={notification.id} onClick={() => openNotification(notification, message)}>{x('Someone replied to:', 'شخص رد على:')} {message ? preview(message.content, 34) : x('your bottle', 'رسالتك')}</button>
               })}</div> : <p className="my-account__empty">{x('No new replies yet.', 'لا توجد ردود جديدة بعد.')}</p>}
               <p className="my-account__title">{x('A letter to future you', 'رسالة إلى نفسك في المستقبل')}</p>
               <form className="future-letter-form" onSubmit={saveFutureLetter}><textarea value={futureContent} onChange={(event) => setFutureContent(event.target.value)} maxLength="500" placeholder={x('Write something future you should read…', 'اكتب شيئًا يجب أن تقرأه في المستقبل…')} required /><input type="datetime-local" value={futureDate} onChange={(event) => setFutureDate(event.target.value)} required /><button type="submit">{x('Seal this letter', 'أغلق الرسالة')}</button></form>

@@ -89,7 +89,8 @@ node --env-file=../.env --check index.js
 | GET | `/api/messages/mine` | رسائل المستخدم المسجل |
 | GET/POST/DELETE | `/api/favorites` | إدارة المفضلة |
 | GET/PATCH | `/api/profile` | الملف الشخصي |
-| GET | `/api/notifications` | إشعارات الردود |
+| GET | `/api/notifications` | إشعارات الردود الجديدة |
+| PATCH | `/api/notifications/:id/read` | تعليم الإشعار كمقروء |
 | GET/POST | `/api/future-letters` | حفظ الرسائل المستقبلية وعرض حالتها |
 
 ## الخصوصية

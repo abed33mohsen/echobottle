@@ -124,3 +124,8 @@ begin
   return chosen_id;
 end;
 $$;
+
+revoke all on function public.claim_one_time_message(text) from public;
+revoke all on function public.claim_one_time_message(text) from anon;
+revoke all on function public.claim_one_time_message(text) from authenticated;
+grant execute on function public.claim_one_time_message(text) to service_role;

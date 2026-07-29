@@ -428,8 +428,21 @@ app.get('/api/notifications', async (request, response, next) => {
   try {
     const user = await getAuthenticatedUser(request)
     if (!user || !isSupabaseEnabled) return response.status(401).json({ error: 'Authentication required.' })
-    const notifications = await supabaseRequest(`notifications?user_id=eq.${user.id}&select=*&order=created_at.desc&limit=8`)
+    const notifications = await supabaseRequest(`notifications?user_id=eq.${user.id}&is_read=eq.false&select=*&order=created_at.desc&limit=8`)
     response.json({ notifications })
+  } catch (error) { next(error) }
+})
+
+app.patch('/api/notifications/:id/read', async (request, response, next) => {
+  try {
+    const user = await getAuthenticatedUser(request)
+    if (!user || !isSupabaseEnabled) return response.status(401).json({ error: 'Authentication required.' })
+    await supabaseRequest(`notifications?id=eq.${request.params.id}&user_id=eq.${user.id}`, {
+      method: 'PATCH',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({ is_read: true }),
+    })
+    response.status(204).end()
   } catch (error) { next(error) }
 })
 
