@@ -23,7 +23,7 @@
   border-bottom: 1px solid rgba(211, 235, 230, 0.12);
 }
 
-.language-switch { margin-inline-start: auto; padding: 7px 10px; border: 1px solid rgba(139,216,206,.35); border-radius: 999px; color: #c9ebe4; background: transparent; cursor: pointer; font-size: .75rem; font-weight: 800; }
+.language-switch { margin-inline-start: 0; padding: 7px 10px; border: 1px solid rgba(139,216,206,.35); border-radius: 999px; color: #c9ebe4; background: transparent; cursor: pointer; font-size: .75rem; font-weight: 800; }
 .language-switch:hover { color: #08232d; background: #94ddcf; }
 
 .main-nav { position: relative; margin-inline: 12px 0; }
@@ -251,6 +251,12 @@
 .future-letter-form textarea, .future-letter-form input { width: 100%; padding: 8px; border: 1px solid rgba(242,199,121,.25); border-radius: 8px; color: #eaf8f4; background: rgba(4,20,31,.45); }
 .future-letter-form textarea { min-height: 70px; resize: vertical; }
 .future-letter-form button { color: #08232d; background: #f2c779; }
+.future-letter-list { display: grid; gap: 8px; margin-top: 10px; }
+.future-letter-list article { padding: 10px 12px; border: 1px solid rgba(125,211,199,.2); border-radius: 10px; background: rgba(4,20,31,.35); }
+.future-letter-list article.is-unlocked { border-color: rgba(242,199,121,.42); background: rgba(242,199,121,.07); }
+.future-letter-list time { display: block; color: #7dd3c7; font-size: .7rem; }
+.future-letter-list strong { display: block; margin-top: 3px; color: #fff8eb; font-size: .78rem; }
+.future-letter-list p { margin: 5px 0 0; color: #a9d7d5; font-size: .75rem; line-height: 1.55; }
 
 .panel {
   border: 1px solid rgba(213, 236, 230, 0.14);
@@ -663,6 +669,125 @@ button:disabled { cursor: wait; opacity: 0.65; transform: none !important; }
 .shelf-message small { color: #89a6a5; }
 .empty-shelf { margin: 24px 0 3px; color: #90acaa; font-size: 0.86rem; }
 
+.main-nav { display: flex; align-items: center; gap: 7px; }
+
+.nav-heart {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  filter: drop-shadow(0 0 8px rgba(125, 211, 199, .38));
+  pointer-events: none;
+}
+
+.nav-heart svg {
+  width: 31px;
+  overflow: visible;
+  animation: nav-heart-pulse 2.6s ease-in-out infinite;
+}
+
+.nav-heart path {
+  fill: rgba(125, 211, 199, .1);
+  stroke: #8de1d4;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 270;
+  animation: nav-heart-flow 3.2s linear infinite;
+}
+
+.nav-heart__spark {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #f2c779;
+  box-shadow: 0 0 7px #f2c779;
+  animation: nav-heart-spark 2.4s ease-in-out infinite;
+}
+
+.nav-heart__spark--one { top: 5px; left: 8px; }
+.nav-heart__spark--two { top: 9px; right: 5px; animation-delay: -.8s; }
+.nav-heart__spark--three { bottom: 5px; right: 12px; animation-delay: -1.55s; }
+.nav-heart.is-loved svg { animation: nav-heart-love .75s ease-out, nav-heart-pulse 2.6s .75s ease-in-out infinite; }
+.nav-heart.is-loved path { stroke: #f2c779; filter: drop-shadow(0 0 7px #7dd3c7); }
+
+.nav-ecg {
+  position: relative;
+  flex: 1 1 280px;
+  min-width: 110px;
+  max-width: 520px;
+  height: 54px;
+  margin-inline: 4px 12px;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: .92;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 94%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 94%, transparent);
+}
+
+.nav-ecg svg { width: 100%; height: 100%; overflow: visible; }
+.nav-ecg path { fill: none; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.nav-ecg__base { stroke: rgba(125, 211, 199, .16); stroke-width: 1.25; }
+.nav-ecg__pulse {
+  stroke: url(#nav-ecg-gradient);
+  stroke-width: 2.2;
+  stroke-dasharray: 74 446;
+  filter: url(#nav-ecg-glow);
+  animation: nav-ecg-travel 3.2s linear infinite;
+}
+
+[dir='rtl'] .nav-ecg__pulse { animation-name: nav-ecg-travel-rtl; }
+
+.nav-ecg > span {
+  position: absolute;
+  top: 50%;
+  inset-inline-end: 4%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #7dd3c7;
+  box-shadow: 0 0 6px #7dd3c7, 0 0 14px rgba(242, 199, 121, .8);
+  animation: nav-ecg-beacon 1.6s ease-in-out infinite;
+}
+
+@keyframes nav-ecg-travel {
+  from { stroke-dashoffset: 520; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes nav-ecg-travel-rtl {
+  from { stroke-dashoffset: -520; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes nav-ecg-beacon {
+  0%, 100% { opacity: .25; transform: translateY(-50%) scale(.65); }
+  50% { opacity: 1; transform: translateY(-50%) scale(1.25); }
+}
+
+@keyframes nav-heart-flow {
+  0% { stroke-dashoffset: 270; }
+  48%, 100% { stroke-dashoffset: 0; }
+}
+
+@keyframes nav-heart-pulse {
+  0%, 100% { transform: scale(.92); opacity: .78; }
+  50% { transform: scale(1.06); opacity: 1; }
+}
+
+@keyframes nav-heart-love {
+  0%, 100% { transform: scale(1); }
+  35% { transform: scale(1.34) rotate(-5deg); }
+  62% { transform: scale(.9) rotate(3deg); }
+}
+
+@keyframes nav-heart-spark {
+  0%, 100% { opacity: .18; transform: translateY(2px) scale(.6); }
+  45% { opacity: 1; transform: translateY(-3px) scale(1.15); }
+}
+
 .site-footer {
   display: flex;
   justify-content: space-between;
@@ -684,7 +809,10 @@ button:disabled { cursor: wait; opacity: 0.65; transform: none !important; }
   .page-shell,
   .site-footer { width: min(100% - 28px, 1180px); }
   .site-header { min-height: 66px; }
-  .main-nav { display: none; }
+  .main-nav { display: flex; }
+  .api-status { display: none; }
+  .brand > span:last-child { display: none; }
+  .nav-ecg { flex-basis: 70px; min-width: 48px; height: 40px; margin-inline: 0 4px; }
   .page-shell { padding-top: 38px; }
   .hero { margin-bottom: 30px; }
   .hero h1 { font-size: 2.2rem; }
@@ -697,5 +825,15 @@ button:disabled { cursor: wait; opacity: 0.65; transform: none !important; }
   .message-card { margin: 12px; padding: 16px; }
   .message-card blockquote { min-height: 85px; }
   .message-shelf { grid-template-columns: 1fr; }
+  .nav-heart { width: 34px; height: 34px; }
+  .nav-heart svg { width: 25px; }
   .site-footer { flex-direction: column; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-heart svg,
+  .nav-heart path,
+  .nav-heart__spark,
+  .nav-ecg__pulse,
+  .nav-ecg > span { animation: none; }
 }

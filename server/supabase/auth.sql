@@ -55,6 +55,54 @@ create table if not exists public.future_letters (
 
 create index if not exists future_letters_user_unlock_idx on public.future_letters (user_id, unlock_at);
 
+-- Keep account data private even when the publishable key is used directly.
+alter table public.favorites enable row level security;
+alter table public.profiles enable row level security;
+alter table public.notifications enable row level security;
+alter table public.future_letters enable row level security;
+
+drop policy if exists "Users can read their favorites" on public.favorites;
+create policy "Users can read their favorites" on public.favorites
+  for select using (auth.uid() = user_id);
+drop policy if exists "Users can add their favorites" on public.favorites;
+create policy "Users can add their favorites" on public.favorites
+  for insert with check (auth.uid() = user_id);
+drop policy if exists "Users can remove their favorites" on public.favorites;
+create policy "Users can remove their favorites" on public.favorites
+  for delete using (auth.uid() = user_id);
+
+drop policy if exists "Users can read their profile" on public.profiles;
+create policy "Users can read their profile" on public.profiles
+  for select using (auth.uid() = id);
+drop policy if exists "Users can create their profile" on public.profiles;
+create policy "Users can create their profile" on public.profiles
+  for insert with check (auth.uid() = id);
+drop policy if exists "Users can update their profile" on public.profiles;
+create policy "Users can update their profile" on public.profiles
+  for update using (auth.uid() = id) with check (auth.uid() = id);
+
+drop policy if exists "Users can read their notifications" on public.notifications;
+create policy "Users can read their notifications" on public.notifications
+  for select using (auth.uid() = user_id);
+drop policy if exists "Users can update their notifications" on public.notifications;
+create policy "Users can update their notifications" on public.notifications
+  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "Users can delete their notifications" on public.notifications;
+create policy "Users can delete their notifications" on public.notifications
+  for delete using (auth.uid() = user_id);
+
+-- Locked letters stay unreadable through the public Data API. The trusted server
+-- returns only their id and dates until unlock_at has passed.
+drop policy if exists "Users can read unlocked future letters" on public.future_letters;
+create policy "Users can read unlocked future letters" on public.future_letters
+  for select using (auth.uid() = user_id and unlock_at <= now());
+drop policy if exists "Users can create future letters" on public.future_letters;
+create policy "Users can create future letters" on public.future_letters
+  for insert with check (auth.uid() = user_id and unlock_at > now());
+drop policy if exists "Users can delete their future letters" on public.future_letters;
+create policy "Users can delete their future letters" on public.future_letters
+  for delete using (auth.uid() = user_id);
+
 alter table public.messages add column if not exists rarity varchar(16) not null default 'common';
 alter table public.messages add column if not exists one_time boolean not null default false;
 alter table public.messages add column if not exists claimed_at timestamptz;
@@ -76,3 +124,8 @@ begin
   return chosen_id;
 end;
 $$;
+
+revoke all on function public.claim_one_time_message(text) from public;
+revoke all on function public.claim_one_time_message(text) from anon;
+revoke all on function public.claim_one_time_message(text) from authenticated;
+grant execute on function public.claim_one_time_message(text) to service_role;

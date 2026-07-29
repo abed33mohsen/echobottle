@@ -206,6 +206,20 @@ app.get('/api/messages/random', async (request, response, next) => {
           return
         }
       }
+    } else {
+      const claimableMessages = messages.filter(
+        (message) =>
+          message.oneTime &&
+          !message.claimedAt &&
+          (!allowedMoods.has(mood) || message.mood === mood),
+      )
+      if (claimableMessages.length > 0) {
+        const claimed = claimableMessages[Math.floor(Math.random() * claimableMessages.length)]
+        claimed.claimedAt = new Date().toISOString()
+        await saveMessages(messages)
+        response.json({ message: toPublicMessage(claimed) })
+        return
+      }
     }
     const filteredMessages = (allowedMoods.has(mood)
       ? messages.filter((message) => message.mood === mood)
@@ -243,7 +257,10 @@ app.get('/api/messages/mine', async (request, response, next) => {
     }
 
     const messages = await readMessages()
-    response.json({ messages: sortNewestFirst(messages.filter((message) => message.userId === user.id)) })
+    response.json({
+      messages: sortNewestFirst(messages.filter((message) => message.userId === user.id))
+        .map(toPublicMessage),
+    })
   } catch (error) {
     next(error)
   }
@@ -332,7 +349,7 @@ app.post('/api/messages', async (request, response, next) => {
     if (isSupabaseEnabled) await createSupabaseMessage(newMessage)
     else { const messages = await readMessages(); messages.unshift(newMessage); await saveMessages(messages) }
 
-    response.status(201).json({ message: newMessage })
+    response.status(201).json({ message: toPublicMessage(newMessage) })
   } catch (error) {
     next(error)
   }
@@ -358,7 +375,7 @@ app.post('/api/messages/:id/reactions', async (request, response, next) => {
     message.reactions[type] += 1
     if (isSupabaseEnabled) await patchSupabaseMessage(message)
     else await saveMessages(messages)
-    response.json({ message })
+    response.json({ message: toPublicMessage(message) })
   } catch (error) {
     next(error)
   }
@@ -401,7 +418,7 @@ app.post('/api/messages/:id/replies', async (request, response, next) => {
       })
     }
 
-    response.status(201).json({ message })
+    response.status(201).json({ message: toPublicMessage(message) })
   } catch (error) {
     next(error)
   }
@@ -411,8 +428,21 @@ app.get('/api/notifications', async (request, response, next) => {
   try {
     const user = await getAuthenticatedUser(request)
     if (!user || !isSupabaseEnabled) return response.status(401).json({ error: 'Authentication required.' })
-    const notifications = await supabaseRequest(`notifications?user_id=eq.${user.id}&select=*&order=created_at.desc&limit=8`)
+    const notifications = await supabaseRequest(`notifications?user_id=eq.${user.id}&is_read=eq.false&select=*&order=created_at.desc&limit=8`)
     response.json({ notifications })
+  } catch (error) { next(error) }
+})
+
+app.patch('/api/notifications/:id/read', async (request, response, next) => {
+  try {
+    const user = await getAuthenticatedUser(request)
+    if (!user || !isSupabaseEnabled) return response.status(401).json({ error: 'Authentication required.' })
+    await supabaseRequest(`notifications?id=eq.${request.params.id}&user_id=eq.${user.id}`, {
+      method: 'PATCH',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({ is_read: true }),
+    })
+    response.status(204).end()
   } catch (error) { next(error) }
 })
 
@@ -420,8 +450,17 @@ app.get('/api/future-letters', async (request, response, next) => {
   try {
     const user = await getAuthenticatedUser(request)
     if (!user || !isSupabaseEnabled) return response.status(401).json({ error: 'Authentication required.' })
-    const letters = await supabaseRequest(`future_letters?user_id=eq.${user.id}&select=*&order=unlock_at.asc`)
-    response.json({ letters })
+    const letters = await supabaseRequest(`future_letters?user_id=eq.${user.id}&select=id,unlock_at,created_at,content&order=unlock_at.asc`)
+    const now = Date.now()
+    response.json({
+      letters: letters.map((letter) => ({
+        id: letter.id,
+        unlock_at: letter.unlock_at,
+        created_at: letter.created_at,
+        is_unlocked: new Date(letter.unlock_at).getTime() <= now,
+        ...(new Date(letter.unlock_at).getTime() <= now ? { content: letter.content } : {}),
+      })),
+    })
   } catch (error) { next(error) }
 })
 
@@ -433,7 +472,14 @@ app.post('/api/future-letters', async (request, response, next) => {
     if (!user || !isSupabaseEnabled) return response.status(401).json({ error: 'Authentication required.' })
     if (content.length < 3 || Number.isNaN(unlockAt.getTime()) || unlockAt <= new Date()) return response.status(400).json({ error: 'Choose a future date and write at least 3 characters.' })
     const letters = await supabaseRequest('future_letters', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ user_id: user.id, content, unlock_at: unlockAt.toISOString() }) })
-    response.status(201).json({ letter: letters[0] })
+    response.status(201).json({
+      letter: {
+        id: letters[0].id,
+        unlock_at: letters[0].unlock_at,
+        created_at: letters[0].created_at,
+        is_unlocked: false,
+      },
+    })
   } catch (error) { next(error) }
 })
 
