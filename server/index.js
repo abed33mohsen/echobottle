@@ -12,6 +12,7 @@ const fileName = fileURLToPath(import.meta.url)
 const directoryName = path.dirname(fileName)
 const dataDirectory = path.join(directoryName, 'data')
 const messagesFile = path.join(dataDirectory, 'messages.json')
+const frontendDirectory = path.join(directoryName, '..', 'dist')
 
 const allowedMoods = new Set(['calm', 'curious', 'heavy', 'bright'])
 const allowedReactions = new Set(['wave', 'spark', 'heart'])
@@ -505,6 +506,15 @@ app.delete('/api/messages/:id', async (request, response, next) => {
   } catch (error) {
     next(error)
   }
+})
+
+app.use(express.static(frontendDirectory))
+app.use((request, response, next) => {
+  if (request.method === 'GET' && !request.path.startsWith('/api/')) {
+    response.sendFile(path.join(frontendDirectory, 'index.html'))
+    return
+  }
+  next()
 })
 
 app.use((error, _request, response, _next) => {
