@@ -17,6 +17,9 @@ const frontendDirectory = path.join(directoryName, '..', 'dist')
 const allowedMoods = new Set(['calm', 'curious', 'heavy', 'bright'])
 const allowedReactions = new Set(['wave', 'spark', 'heart'])
 const allowedRarities = new Set(['common', 'golden', 'night', 'coral', 'legendary'])
+const allowedReportReasons = new Set(['harmful', 'spam', 'personal', 'other'])
+const allowedAvatars = new Set(['bottle', 'moon', 'wave', 'star', 'shell'])
+const allowedAccentColors = new Set(['teal', 'gold', 'coral', 'violet'])
 
 function pickRarity() {
   const roll = Math.random() * 100
@@ -64,6 +67,35 @@ const seedMessages = [
 ]
 
 let writeQueue = Promise.resolve()
+
+function createRateLimiter({ windowMs, max }) {
+  const buckets = new Map()
+  return (request, response, next) => {
+    const now = Date.now()
+    const key = createHash('sha256').update(request.ip || 'unknown').digest('hex')
+    const bucket = buckets.get(key)
+    if (!bucket || bucket.resetAt <= now) {
+      buckets.set(key, { count: 1, resetAt: now + windowMs })
+      next()
+      return
+    }
+    if (bucket.count >= max) {
+      response.set('Retry-After', Math.ceil((bucket.resetAt - now) / 1000).toString())
+      response.status(429).json({ error: 'Too many requests. Give the sea a moment, then try again.' })
+      return
+    }
+    bucket.count += 1
+    if (buckets.size > 10_000) {
+      for (const [bucketKey, value] of buckets) if (value.resetAt <= now) buckets.delete(bucketKey)
+    }
+    next()
+  }
+}
+
+const messageLimiter = createRateLimiter({ windowMs: 10 * 60 * 1000, max: 6 })
+const replyLimiter = createRateLimiter({ windowMs: 5 * 60 * 1000, max: 12 })
+const reactionLimiter = createRateLimiter({ windowMs: 60 * 1000, max: 35 })
+const reportLimiter = createRateLimiter({ windowMs: 60 * 60 * 1000, max: 8 })
 
 function cleanText(value, maxLength) {
   if (typeof value !== 'string') return ''
@@ -188,6 +220,7 @@ async function getAuthenticatedUser(request) {
   return response.ok ? response.json() : null
 }
 
+app.set('trust proxy', 1)
 app.use(cors())
 app.use(express.json({ limit: '16kb' }))
 
@@ -208,6 +241,28 @@ app.get('/api/messages', async (request, response, next) => {
   } catch (error) {
     next(error)
   }
+})
+
+app.get('/api/messages/daily', async (_request, response, next) => {
+  try {
+    const messages = (await readMessages()).filter((message) => !message.oneTime)
+    if (messages.length === 0) return response.status(404).json({ error: 'No daily message is available yet.' })
+
+    const day = new Date().toISOString().slice(0, 10)
+    const ranked = messages.map((message) => {
+      const engagement = (message.reactions.wave || 0)
+        + (message.reactions.spark || 0) * 2
+        + (message.reactions.heart || 0) * 3
+        + message.replies.length * 4
+      const dailySeed = Number.parseInt(
+        createHash('sha256').update(`${day}:${message.id}`).digest('hex').slice(0, 8),
+        16,
+      ) / 0xffffffff
+      return { message, score: engagement + dailySeed * 8 }
+    })
+    ranked.sort((first, second) => second.score - first.score)
+    response.json({ message: toPublicMessage(ranked[0].message), day })
+  } catch (error) { next(error) }
 })
 
 app.get('/api/messages/random', async (request, response, next) => {
@@ -313,8 +368,11 @@ app.patch('/api/profile', async (request, response, next) => {
   try {
     const user = await getAuthenticatedUser(request)
     const displayName = cleanText(request.body.displayName, 32)
+    const bio = cleanText(request.body.bio, 120)
+    const avatar = allowedAvatars.has(request.body.avatar) ? request.body.avatar : 'bottle'
+    const accentColor = allowedAccentColors.has(request.body.accentColor) ? request.body.accentColor : 'teal'
     if (!user || !isSupabaseEnabled) return response.status(401).json({ error: 'Authentication required.' })
-    const profiles = await supabaseRequest(`profiles?id=eq.${user.id}`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ display_name: displayName, updated_at: new Date().toISOString() }) })
+    const profiles = await supabaseRequest(`profiles?id=eq.${user.id}`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ display_name: displayName, bio, avatar, accent_color: accentColor, updated_at: new Date().toISOString() }) })
     response.json({ profile: profiles[0] })
   } catch (error) { next(error) }
 })
@@ -337,7 +395,7 @@ app.delete('/api/favorites/:messageId', async (request, response, next) => {
   } catch (error) { next(error) }
 })
 
-app.post('/api/messages', async (request, response, next) => {
+app.post('/api/messages', messageLimiter, async (request, response, next) => {
   try {
     const content = cleanText(request.body.content, 280)
     const signature = cleanText(request.body.signature, 32)
@@ -377,7 +435,7 @@ app.post('/api/messages', async (request, response, next) => {
   }
 })
 
-app.post('/api/messages/:id/reactions', async (request, response, next) => {
+app.post('/api/messages/:id/reactions', reactionLimiter, async (request, response, next) => {
   try {
     const type = request.body.type
 
@@ -403,7 +461,7 @@ app.post('/api/messages/:id/reactions', async (request, response, next) => {
   }
 })
 
-app.post('/api/messages/:id/replies', async (request, response, next) => {
+app.post('/api/messages/:id/replies', replyLimiter, async (request, response, next) => {
   try {
     const content = cleanText(request.body.content, 180)
 
@@ -455,6 +513,25 @@ app.get('/api/notifications', async (request, response, next) => {
   } catch (error) { next(error) }
 })
 
+app.post('/api/messages/:id/reports', reportLimiter, async (request, response, next) => {
+  try {
+    const reason = allowedReportReasons.has(request.body.reason) ? request.body.reason : null
+    if (!reason || !isSupabaseEnabled) return response.status(400).json({ error: 'Choose a valid report reason.' })
+    const messages = await readMessages()
+    if (!messages.some((message) => message.id === request.params.id)) return response.status(404).json({ error: 'Message not found.' })
+    const forwardedFor = request.headers['x-forwarded-for']?.split(',')[0]?.trim() || request.ip || ''
+    const reporterHash = createHash('sha256')
+      .update(`${request.params.id}:${forwardedFor}:${request.headers['user-agent'] || ''}:${process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY}`)
+      .digest('hex')
+    await supabaseRequest('message_reports?on_conflict=message_id,reporter_hash', {
+      method: 'POST',
+      headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' },
+      body: JSON.stringify({ message_id: request.params.id, reporter_hash: reporterHash, reason }),
+    })
+    response.status(201).json({ reported: true })
+  } catch (error) { next(error) }
+})
+
 app.get('/api/admin/stats', async (request, response, next) => {
   try {
     const user = await getAuthenticatedUser(request)
@@ -464,17 +541,32 @@ app.get('/api/admin/stats', async (request, response, next) => {
     }
 
     const today = new Date().toISOString().slice(0, 10)
+    const weekStartDate = new Date()
+    weekStartDate.setUTCDate(weekStartDate.getUTCDate() - 6)
+    const weekStart = weekStartDate.toISOString().slice(0, 10)
     const onlineSince = new Date(Date.now() - 5 * 60 * 1000).toISOString()
-    const [visits, onlineVisits, profiles, messages] = await Promise.all([
+    const [visits, weeklyVisits, onlineVisits, profiles, messages, reports] = await Promise.all([
       supabaseRequest(`site_visits?visit_date=eq.${today}&select=visitor_hash`),
+      supabaseRequest(`site_visits?visit_date=gte.${weekStart}&select=visit_date,visitor_hash`),
       supabaseRequest(`site_visits?last_seen=gte.${onlineSince}&select=visitor_hash`),
       supabaseRequest('profiles?select=id'),
       readMessages(),
+      supabaseRequest('message_reports?status=eq.pending&select=id,message_id,reason,created_at&order=created_at.desc&limit=12'),
     ])
     const reactions = messages.reduce(
       (total, message) => total + Object.values(message.reactions || {}).reduce((sum, count) => sum + count, 0),
       0,
     )
+    const visitorTrend = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(weekStartDate)
+      date.setUTCDate(weekStartDate.getUTCDate() + index)
+      const key = date.toISOString().slice(0, 10)
+      return { date: key, visitors: weeklyVisits.filter((visit) => visit.visit_date === key).length }
+    })
+    const yesterdayVisitors = visitorTrend.at(-2)?.visitors || 0
+    const visitorChange = yesterdayVisitors
+      ? Math.round(((visits.length - yesterdayVisitors) / yesterdayVisitors) * 100)
+      : visits.length ? 100 : 0
 
     response.json({
       stats: {
@@ -484,8 +576,31 @@ app.get('/api/admin/stats', async (request, response, next) => {
         messages: messages.length,
         replies: messages.reduce((total, message) => total + message.replies.length, 0),
         reactions,
+        visitorTrend,
+        visitorChange,
+        accountConversion: weeklyVisits.length ? Math.min(100, Math.round((profiles.length / weeklyVisits.length) * 100)) : 0,
+        reports,
       },
     })
+  } catch (error) { next(error) }
+})
+
+app.patch('/api/admin/reports/:id', async (request, response, next) => {
+  try {
+    const user = await getAuthenticatedUser(request)
+    const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase()
+    if (!user || !adminEmail || user.email?.toLowerCase() !== adminEmail) return response.status(403).json({ error: 'Admin access required.' })
+    const action = request.body.action
+    if (!['dismiss', 'delete'].includes(action)) return response.status(400).json({ error: 'Invalid moderation action.' })
+    const reports = await supabaseRequest(`message_reports?id=eq.${request.params.id}&status=eq.pending&select=*`)
+    if (!reports[0]) return response.status(404).json({ error: 'Report not found.' })
+    if (action === 'delete' && reports[0].message_id) await deleteSupabaseMessage(reports[0].message_id)
+    await supabaseRequest(`message_reports?id=eq.${request.params.id}`, {
+      method: 'PATCH',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({ status: action === 'delete' ? 'resolved' : 'dismissed', reviewed_at: new Date().toISOString() }),
+    })
+    response.status(204).end()
   } catch (error) { next(error) }
 })
 

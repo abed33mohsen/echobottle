@@ -62,8 +62,26 @@ create table if not exists public.site_visits (
   primary key (visit_date, visitor_hash)
 );
 
+alter table public.profiles add column if not exists bio varchar(120) not null default '';
+alter table public.profiles add column if not exists avatar varchar(16) not null default 'bottle';
+alter table public.profiles add column if not exists accent_color varchar(16) not null default 'teal';
+
 create index if not exists site_visits_last_seen_idx
   on public.site_visits (last_seen desc);
+
+create table if not exists public.message_reports (
+  id uuid primary key default gen_random_uuid(),
+  message_id uuid references public.messages(id) on delete set null,
+  reporter_hash text not null check (char_length(reporter_hash) = 64),
+  reason varchar(24) not null check (reason in ('harmful', 'spam', 'personal', 'other')),
+  status varchar(16) not null default 'pending' check (status in ('pending', 'dismissed', 'resolved')),
+  created_at timestamptz not null default now(),
+  reviewed_at timestamptz,
+  unique (message_id, reporter_hash)
+);
+
+create index if not exists message_reports_status_created_idx
+  on public.message_reports (status, created_at desc);
 
 -- Keep account data private even when the publishable key is used directly.
 alter table public.favorites enable row level security;
@@ -71,6 +89,7 @@ alter table public.profiles enable row level security;
 alter table public.notifications enable row level security;
 alter table public.future_letters enable row level security;
 alter table public.site_visits enable row level security;
+alter table public.message_reports enable row level security;
 
 drop policy if exists "Users can read their favorites" on public.favorites;
 create policy "Users can read their favorites" on public.favorites
